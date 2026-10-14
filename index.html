@@ -96,7 +96,7 @@
     <header class="dashboard-header">
         <div>
             <h2><i class="fa-solid fa-fire"></i> Gestion AVEC - Base Cloud Firebase</h2>
-            <p>Synchronisation en temps rÃ©el</p>
+            <p>Synchronisation en temps réel</p>
         </div>
     </header>
 
@@ -104,7 +104,7 @@
         <div class="stat-card">
             <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
             <div class="stat-content">
-                <div class="label">Total Ã‰pargne Globale</div>
+                <div class="label">Total Épargne Globale</div>
                 <div class="value" id="statTotalEpargne">$0</div>
             </div>
         </div>
@@ -118,7 +118,7 @@
         <div class="stat-card">
             <div class="stat-icon bg-green"><i class="fa-solid fa-percent"></i></div>
             <div class="stat-content">
-                <div class="label">CrÃ©dits en Cours</div>
+                <div class="label">Crédits en Cours</div>
                 <div class="value" id="statTotalCredits">$0</div>
             </div>
         </div>
@@ -137,8 +137,8 @@
                 <div class="card-header"><i class="fa-solid fa-user-plus"></i><h3>Enregistrer un Membre</h3></div>
                 <form id="addMemberForm">
                     <div class="form-group"><label>Nom & Post-nom</label><input type="text" id="memName" required placeholder="Ex: Bahati Alain"></div>
-                    <div class="form-group"><label>TÃ©lÃ©phone</label><input type="text" id="memPhone" placeholder="+243 ..."></div>
-                    <div class="form-group"><label>Ã‰pargne Initiale ($)</label><input type="number" id="memEpargne" required min="0" placeholder="Ex: 100"></div>
+                    <div class="form-group"><label>Téléphone</label><input type="text" id="memPhone" placeholder="+243 ..."></div>
+                    <div class="form-group"><label>Épargne Initiale ($)</label><input type="number" id="memEpargne" required min="0" placeholder="Ex: 100"></div>
                     <div class="form-group"><label>Social Initial ($)</label><input type="number" id="memSocial" required min="0" placeholder="Ex: 5"></div>
                     <button type="submit" class="btn">Enregistrer dans le Cloud</button>
                 </form>
@@ -147,18 +147,18 @@
 
         <div>
             <section class="card">
-                <div class="card-header"><i class="fa-solid fa-users"></i><h3>RÃ©pertoire des Membres (Cloud Firestore)</h3></div>
+                <div class="card-header"><i class="fa-solid fa-users"></i><h3>Répertoire des Membres (Cloud Firestore)</h3></div>
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
                             <tr>
                                 <th>Nom & Contact</th>
-                                <th>Ã‰pargne ($)</th>
+                                <th>Épargne ($)</th>
                                 <th>Social ($)</th>
                             </tr>
                         </thead>
                         <tbody id="membersTableBody">
-                            <tr><td colspan="3">Connexion Ã  Firebase en cours...</td></tr>
+                            <tr><td colspan="3">Connexion à Firebase en cours...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -166,7 +166,7 @@
         </div>
     </div>
 
-    <!-- SDK FIREBASE CONFIGURÃ‰ AVEC TES CLÃ‰S -->
+    <!-- SDK FIREBASE CONFIGURÉ AVEC TES CLÉS -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -202,13 +202,13 @@
                     createdAt: new Date()
                 });
                 document.getElementById('addMemberForm').reset();
-                alert("Membre enregistrÃ© avec succÃ¨s dans Firebase !");
+                alert("Membre enregistré avec succès dans Firebase !");
             } catch (error) {
                 alert("Erreur : " + error.message);
             }
         });
 
-        // Ã‰coute en temps rÃ©el de la base de donnÃ©es Firestore
+        // Écoute en temps réel de la base de données Firestore
         onSnapshot(membersRef, (snapshot) => {
             const tbody = document.getElementById('membersTableBody');
             tbody.innerHTML = '';
