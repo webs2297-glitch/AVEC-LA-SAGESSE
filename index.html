@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion AVEC - Synchronisation Firebase Cloud</title>
+    <title>Gestion AVEC - Base Cloud Firebase</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -25,8 +25,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
         body { background-color: var(--bg-main); color: var(--text-main); padding: 20px; min-height: 100vh; }
 
-        .hidden { display: none !important; }
-
         .dashboard-header {
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             color: white;
@@ -45,7 +43,6 @@
             margin-bottom: 24px;
         }
         @media (max-width: 1000px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 600px) { .stats-grid { grid-template-columns: 1fr; } }
 
         .stat-card {
             background: var(--surface);
@@ -80,45 +77,29 @@
 
         .card { background: var(--surface); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 24px; }
         .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-        .card-header i { color: var(--primary); font-size: 1.1rem; }
-        .card-header h3 { font-size: 1rem; }
+        .card-header i { color: var(--primary); }
 
         .form-group { margin-bottom: 12px; }
         label { display: block; font-size: 0.82rem; font-weight: 500; margin-bottom: 4px; }
         input, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
-        input:focus, select:focus { outline: none; border-color: var(--primary); }
 
-        .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
+        .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; }
         .btn:hover { background: var(--primary-dark); }
 
         table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 8px; }
         th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
-        th { background: #f8fafc; color: var(--text-muted); font-weight: 600; }
-
-        .alert { padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-top: 10px; }
-        .alert-error { background: #fee2e2; color: #991b1b; }
-        .alert-success { background: #d1fae5; color: #065f46; }
-
-        .member-details-box {
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px;
-            margin-top: 8px;
-            font-size: 0.82rem;
-        }
+        th { background: #f8fafc; color: var(--text-muted); }
     </style>
 </head>
 <body>
 
     <header class="dashboard-header">
         <div>
-            <h2><i class="fa-solid fa-fire"></i> Gestion AVEC - Base Cloud</h2>
-            <p>Compte : <strong>weundeprince6@gmail.com</strong></p>
+            <h2><i class="fa-solid fa-fire"></i> Gestion AVEC - Base Cloud Firebase</h2>
+            <p>Synchronisation en temps réel</p>
         </div>
     </header>
 
-    <!-- CAISSE GLOBALE STATS -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
@@ -128,21 +109,21 @@
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon bg-purple"><i class="fa-solid fa-hand-holding-heart"></i></div>
+            <div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-dollar"></i></div>
             <div class="stat-content">
                 <div class="label">Total Fonds Social</div>
                 <div class="value" id="statTotalSocial">$0</div>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+            <div class="stat-icon bg-green"><i class="fa-solid fa-percent"></i></div>
             <div class="stat-content">
                 <div class="label">Crédits en Cours</div>
                 <div class="value" id="statTotalCredits">$0</div>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon bg-green"><i class="fa-solid fa-users"></i></div>
+            <div class="stat-icon bg-purple"><i class="fa-solid fa-users"></i></div>
             <div class="stat-content">
                 <div class="label">Membres Actifs</div>
                 <div class="value" id="statTotalMembres">0</div>
@@ -151,127 +132,33 @@
     </div>
 
     <div class="grid-container">
-        <!-- FORMULAIRES -->
         <div>
-            <!-- 1. ENREGISTRER UN MEMBRE -->
             <section class="card">
-                <div class="card-header">
-                    <i class="fa-solid fa-user-plus"></i>
-                    <h3>1. Enregistrer un Membre</h3>
-                </div>
+                <div class="card-header"><i class="fa-solid fa-user-plus"></i><h3>Enregistrer un Membre</h3></div>
                 <form id="addMemberForm">
-                    <div class="form-group">
-                        <label>Nom & Post-nom</label>
-                        <input type="text" id="memName" required placeholder="Ex: Bahati Alain">
-                    </div>
-                    <div class="form-group">
-                        <label>Téléphone</label>
-                        <input type="text" id="memPhone" placeholder="+243 ...">
-                    </div>
-                    <div class="form-group">
-                        <label>Épargne initiale ($)</label>
-                        <input type="number" id="memEpargne" required min="0" placeholder="Ex: 50">
-                    </div>
-                    <div class="form-group">
-                        <label>Cotisation Sociale initiale ($)</label>
-                        <input type="number" id="memSocial" required min="0" placeholder="Ex: 5">
-                    </div>
+                    <div class="form-group"><label>Nom & Post-nom</label><input type="text" id="memName" required placeholder="Ex: Bahati Alain"></div>
+                    <div class="form-group"><label>Téléphone</label><input type="text" id="memPhone" placeholder="+243 ..."></div>
+                    <div class="form-group"><label>Épargne Initiale ($)</label><input type="number" id="memEpargne" required min="0" placeholder="Ex: 100"></div>
+                    <div class="form-group"><label>Social Initial ($)</label><input type="number" id="memSocial" required min="0" placeholder="Ex: 5"></div>
                     <button type="submit" class="btn">Enregistrer dans le Cloud</button>
-                </form>
-            </section>
-
-            <!-- 2. DÉPÔT ÉPARGNE / SOCIAL -->
-            <section class="card">
-                <div class="card-header">
-                    <i class="fa-solid fa-coins"></i>
-                    <h3>2. Effectuer un Dépôt</h3>
-                </div>
-                <form id="depositForm">
-                    <div class="form-group">
-                        <label>Sélectionner le Membre</label>
-                        <select id="depositMemberSelect" required>
-                            <option value="">-- Choisir un membre --</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Type de Dépôt</label>
-                        <select id="depositType" required>
-                            <option value="epargne">Épargne Supplémentaire</option>
-                            <option value="social">Fonds Social</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Montant ($)</label>
-                        <input type="number" id="depositAmount" required min="1" placeholder="Ex: 20">
-                    </div>
-                    <button type="submit" class="btn">Valider le Dépôt</button>
-                </form>
-            </section>
-
-            <!-- 3. OCTROYER UN CRÉDIT -->
-            <section class="card">
-                <div class="card-header">
-                    <i class="fa-solid fa-calculator"></i>
-                    <h3>3. Octroyer un Crédit (Max 3x Épargne)</h3>
-                </div>
-                <form id="creditForm">
-                    <div class="form-group">
-                        <label>Sélectionner le Membre</label>
-                        <select id="creditMemberSelect" required>
-                            <option value="">-- Choisir un membre --</option>
-                        </select>
-                    </div>
-                    <div id="memberInfoHint" class="member-details-box hidden"></div>
-                    <div class="form-group" style="margin-top: 8px;">
-                        <label>Montant du Crédit Demandé ($)</label>
-                        <input type="number" id="calcCreditAmount" required min="1" placeholder="Ex: 150">
-                    </div>
-                    <button type="submit" class="btn">Octroyer le Crédit (-10% à la source)</button>
-                </form>
-                <div id="creditResultBox" class="alert hidden"></div>
-            </section>
-
-            <!-- 4. REMBOURSEMENT -->
-            <section class="card">
-                <div class="card-header">
-                    <i class="fa-solid fa-hand-holding-dollar"></i>
-                    <h3>4. Enregistrer un Remboursement</h3>
-                </div>
-                <form id="repayForm">
-                    <div class="form-group">
-                        <label>Sélectionner le Membre</label>
-                        <select id="repayMemberSelect" required>
-                            <option value="">-- Choisir un membre --</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Montant Remboursé ($)</label>
-                        <input type="number" id="repayAmount" required min="1" placeholder="Ex: 50">
-                    </div>
-                    <button type="submit" class="btn">Enregistrer le Remboursement</button>
                 </form>
             </section>
         </div>
 
-        <!-- TABLEAU RÉPERTOIRE EN TEMPS RÉEL -->
         <div>
             <section class="card">
-                <div class="card-header">
-                    <i class="fa-solid fa-users"></i>
-                    <h3>Répertoire & Situation des Membres (Cloud)</h3>
-                </div>
+                <div class="card-header"><i class="fa-solid fa-users"></i><h3>Répertoire des Membres (Cloud Firestore)</h3></div>
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
                             <tr>
                                 <th>Nom & Contact</th>
-                                <th>Épargne</th>
-                                <th>Social</th>
-                                <th>Crédit Restant</th>
+                                <th>Épargne ($)</th>
+                                <th>Social ($)</th>
                             </tr>
                         </thead>
                         <tbody id="membersTableBody">
-                            <tr><td colspan="4">Chargement des données Cloud...</td></tr>
+                            <tr><td colspan="3">Connexion à Firebase en cours...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -279,10 +166,10 @@
         </div>
     </div>
 
-    <!-- FIREBASE MODULES ET CONFIGURATION -->
+    <!-- SDK FIREBASE CONFIGURÉ AVEC TES CLÉS -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAFVFR95Q33ouclqeW9-qKGC6qXih690G0",
@@ -298,9 +185,7 @@
         const db = getFirestore(app);
         const membersRef = collection(db, "members");
 
-        let currentMembers = [];
-
-        // 1. AJOUT D'UN MEMBRE
+        // Ajout d'un membre
         document.getElementById('addMemberForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('memName').value.trim();
@@ -314,154 +199,41 @@
                     phone,
                     epargne,
                     social,
-                    creditRestant: 0,
-                    creditTotal: 0,
                     createdAt: new Date()
                 });
                 document.getElementById('addMemberForm').reset();
-            } catch (error) {
-                alert("Erreur lors de l'enregistrement : " + error.message);
-            }
-        });
-
-        // 2. DÉPÔT (ÉPARGNE OU SOCIAL)
-        document.getElementById('depositForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('depositMemberSelect').value;
-            const type = document.getElementById('depositType').value;
-            const amount = parseFloat(document.getElementById('depositAmount').value) || 0;
-
-            const member = currentMembers.find(m => m.id === id);
-            if (!member) return;
-
-            const memberDoc = doc(db, "members", id);
-            const updateData = {};
-            if (type === 'epargne') {
-                updateData.epargne = (member.epargne || 0) + amount;
-            } else {
-                updateData.social = (member.social || 0) + amount;
-            }
-
-            try {
-                await updateDoc(memberDoc, updateData);
-                document.getElementById('depositForm').reset();
+                alert("Membre enregistré avec succès dans Firebase !");
             } catch (error) {
                 alert("Erreur : " + error.message);
             }
         });
 
-        // 3. CRÉDIT
-        document.getElementById('creditForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('creditMemberSelect').value;
-            const amount = parseFloat(document.getElementById('calcCreditAmount').value) || 0;
-            const resBox = document.getElementById('creditResultBox');
-
-            const member = currentMembers.find(m => m.id === id);
-            if (!member) return;
-
-            const maxAllowed = (member.epargne || 0) * 3;
-
-            if (amount > maxAllowed) {
-                resBox.className = 'alert alert-error';
-                resBox.innerText = `Crédit Refusé ! Le montant ($${amount}) dépasse le maximum autorisé ($${maxAllowed}).`;
-                resBox.classList.remove('hidden');
-            } else {
-                const interet = amount * 0.10;
-                const net = amount - interet;
-
-                const memberDoc = doc(db, "members", id);
-                await updateDoc(memberDoc, {
-                    creditRestant: (member.creditRestant || 0) + amount,
-                    creditTotal: (member.creditTotal || 0) + amount
-                });
-
-                resBox.className = 'alert alert-success';
-                resBox.innerHTML = `Crédit Accordé ! Net versé : <strong>$${net}</strong> (10% soit $${interet} soutirés à la source). Capital à rembourser : $${amount}.`;
-                resBox.classList.remove('hidden');
-                document.getElementById('calcCreditAmount').value = '';
-            }
-        });
-
-        // 4. REMBOURSEMENT
-        document.getElementById('repayForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('repayMemberSelect').value;
-            const amount = parseFloat(document.getElementById('repayAmount').value) || 0;
-
-            const member = currentMembers.find(m => m.id === id);
-            if (!member) return;
-
-            const currentRestant = member.creditRestant || 0;
-            const newRestant = Math.max(0, currentRestant - amount);
-
-            const memberDoc = doc(db, "members", id);
-            try {
-                await updateDoc(memberDoc, { creditRestant: newRestant });
-                document.getElementById('repayForm').reset();
-            } catch (error) {
-                alert("Erreur : " + error.message);
-            }
-        });
-
-        // ÉCOUTE EN TEMPS RÉEL (FIRESTORE)
+        // Écoute en temps réel de la base de données Firestore
         onSnapshot(membersRef, (snapshot) => {
-            currentMembers = [];
             const tbody = document.getElementById('membersTableBody');
-            const selectDeposit = document.getElementById('depositMemberSelect');
-            const selectCredit = document.getElementById('creditMemberSelect');
-            const selectRepay = document.getElementById('repayMemberSelect');
-
             tbody.innerHTML = '';
-            selectDeposit.innerHTML = '<option value="">-- Choisir un membre --</option>';
-            selectCredit.innerHTML = '<option value="">-- Choisir un membre --</option>';
-            selectRepay.innerHTML = '<option value="">-- Choisir un membre --</option>';
-
             let totalEpargne = 0;
             let totalSocial = 0;
-            let totalCredits = 0;
             let count = 0;
 
-            snapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                const m = { id: docSnap.id, ...data };
-                currentMembers.push(m);
-
+            snapshot.forEach((doc) => {
+                const data = doc.data();
                 count++;
                 totalEpargne += data.epargne || 0;
                 totalSocial += data.social || 0;
-                totalCredits += data.creditRestant || 0;
 
                 tbody.innerHTML += `
                     <tr>
                         <td><strong>${data.name}</strong><br><small style="color:var(--text-muted);">${data.phone || '-'}</small></td>
                         <td>$${data.epargne || 0}</td>
                         <td>$${data.social || 0}</td>
-                        <td><strong>$${data.creditRestant || 0}</strong></td>
                     </tr>
                 `;
-
-                selectDeposit.innerHTML += `<option value="${m.id}">${data.name}</option>`;
-                selectCredit.innerHTML += `<option value="${m.id}">${data.name} (Max Crédit: $${(data.epargne || 0) * 3})</option>`;
-                selectRepay.innerHTML += `<option value="${m.id}">${data.name} (Reste: $${data.creditRestant || 0})</option>`;
             });
 
             document.getElementById('statTotalEpargne').innerText = '$' + totalEpargne;
             document.getElementById('statTotalSocial').innerText = '$' + totalSocial;
-            document.getElementById('statTotalCredits').innerText = '$' + totalCredits;
             document.getElementById('statTotalMembres').innerText = count;
-        });
-
-        document.getElementById('creditMemberSelect').addEventListener('change', (e) => {
-            const id = e.target.value;
-            const hintBox = document.getElementById('memberInfoHint');
-            if (!id) { hintBox.classList.add('hidden'); return; }
-            const m = currentMembers.find(x => x.id === id);
-            if (m) {
-                const max = (m.epargne || 0) * 3;
-                hintBox.innerHTML = `Épargne actuelle : $${m.epargne || 0} | <strong>Plafond de Crédit Autorisé (3x) : $${max}</strong>`;
-                hintBox.classList.remove('hidden');
-            }
         });
     </script>
 </body>
