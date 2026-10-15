@@ -97,6 +97,18 @@
         .bg-green { background: var(--success); }
         .bg-warning { background: var(--warning); }
         .bg-purple { background: #8b5cf6; }
+        .bg-red { background: var(--danger); }
+        textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; resize: vertical; }
+        textarea:focus { outline: none; border-color: var(--primary); }
+        .claim-item { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fff; }
+        .claim-item.open { border-left: 4px solid var(--warning); }
+        .claim-item.done { border-left: 4px solid var(--success); }
+        .claim-meta { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px; }
+        .claim-msg { font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; }
+        .claim-reply { background: #f8fafc; border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word; }
+        .claim-actions { margin-top: 8px; }
+        .claim-actions textarea { margin-bottom: 8px; }
+        .claim-actions .btn-small { padding: 6px 12px; }
 
         .stat-content .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
         .stat-content .value { font-size: 1.25rem; font-weight: 700; margin-top: 4px; color: var(--text-main); }
@@ -157,12 +169,12 @@
 
         <div class="tabs">
             <button class="tab-btn active" onclick="switchAuthTab('login')">Se Connecter</button>
-            <button class="tab-btn" onclick="switchAuthTab('register')">Créer un Compte</button>
+            <button class="tab-btn hidden" id="registerTabBtn" onclick="switchAuthTab('register')">Créer le compte administrateur</button>
         </div>
 
         <form id="loginForm" onsubmit="handleLogin(event)">
             <div class="form-group">
-                <label>Nom d'utilisateur</label>
+                <label>Nom d'utilisateur <small style="color:var(--text-muted);font-weight:400;">(membres : votre identifiant, ex. MBR-001)</small></label>
                 <input type="text" id="loginUsername" required autocomplete="username">
             </div>
             <div class="form-group">
@@ -174,7 +186,7 @@
 
         <form id="registerForm" class="hidden" onsubmit="handleRegister(event)">
             <div class="form-group">
-                <label>Choisissez un nom d'utilisateur</label>
+                <label>Choisissez un nom d'utilisateur administrateur</label>
                 <input type="text" id="regUsername" required placeholder="Ex: prince" autocomplete="username">
             </div>
             <div class="form-group">
@@ -240,6 +252,13 @@
                     <div class="value" id="statTotalMembres">0</div>
                 </div>
             </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-red"><i class="fa-solid fa-bell"></i></div>
+                <div class="stat-content">
+                    <div class="label">Réclamations Ouvertes</div>
+                    <div class="value" id="statOpenClaims">0</div>
+                </div>
+            </div>
         </div>
 
         <div class="grid-container">
@@ -263,8 +282,13 @@
                             <label>Épargne Initiale Versée ($)</label>
                             <input type="number" id="memEpargne" required min="0" step="0.01" placeholder="Ex: 100">
                         </div>
+                        <div class="form-group">
+                            <label>Mot de passe par défaut du membre <small style="color:var(--text-muted);font-weight:400;">(le membre le changera à sa 1re connexion)</small></label>
+                            <input type="text" id="memPassword" required minlength="6" maxlength="64" placeholder="6 caractères minimum" autocomplete="off">
+                        </div>
                         <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le Membre</button>
                     </form>
+                    <div id="memberResultBox" class="alert hidden"></div>
                 </section>
 
                 <section class="card">
@@ -362,8 +386,166 @@
                         </table>
                     </div>
                 </section>
+
+                <section class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-bell"></i>
+                        <h3>Réclamations des Membres</h3>
+                    </div>
+                    <div id="claimsAdminList"></div>
+                </section>
             </div>
         </div>
+    </div>
+
+    <!-- SECTION ESPACE MEMBRE (lecture seule) -->
+    <div id="memberSection" class="hidden">
+        <header class="dashboard-header">
+            <div>
+                <h2><i class="fa-solid fa-piggy-bank"></i> Mon Espace AVEC</h2>
+                <p id="memberWelcome">Consultez votre épargne et vos crédits</p>
+            </div>
+            <div class="user-info">
+                <span><i class="fa-solid fa-circle-user"></i> <strong id="memberUserDisplay">Membre</strong></span>
+                <button class="btn-logout" onclick="logout()" title="Se déconnecter"><i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </header>
+
+        <div id="memberPwdNotice" class="alert alert-error hidden" style="margin-bottom:20px;">
+            <strong>Première connexion :</strong> pour protéger votre compte, choisissez votre propre mot de passe ci-dessous avant de continuer.
+        </div>
+
+        <div id="memberDataWrap">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
+                    <div class="stat-content">
+                        <div class="label">Mon Épargne</div>
+                        <div class="value" id="mStatEpargne">$0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                    <div class="stat-content">
+                        <div class="label">Crédits Obtenus</div>
+                        <div class="value" id="mStatCredits">$0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-purple"><i class="fa-solid fa-hourglass-half"></i></div>
+                    <div class="stat-content">
+                        <div class="label">Reste à Rembourser</div>
+                        <div class="value" id="mStatRestant">$0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-container">
+                <div>
+                    <section class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-hand-holding-dollar"></i>
+                            <h3>Mes Crédits</h3>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Montant</th>
+                                        <th>Intérêt</th>
+                                        <th>Remboursé</th>
+                                        <th>Reste</th>
+                                        <th>Échéance</th>
+                                        <th>Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="mCreditsBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <h3>Mes Opérations</h3>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Opération</th>
+                                        <th>Montant</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="mHistoryBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+
+                <div>
+                    <section class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <h3>Faire une Réclamation</h3>
+                        </div>
+                        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">
+                            Une erreur dans votre épargne ou vos crédits ? Écrivez-nous : l'administrateur verra votre message et corrigera si nécessaire.
+                        </p>
+                        <form onsubmit="handleClaim(event)">
+                            <div class="form-group">
+                                <label>Sujet</label>
+                                <select id="claimSubject" required>
+                                    <option value="Épargne">Mon épargne</option>
+                                    <option value="Crédit">Un de mes crédits</option>
+                                    <option value="Remboursement">Un remboursement</option>
+                                    <option value="Autre">Autre</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Votre message</label>
+                                <textarea id="claimMessage" required minlength="5" maxlength="500" rows="4" placeholder="Expliquez l'erreur constatée (montant, date...)"></textarea>
+                            </div>
+                            <button type="submit" class="btn"><i class="fa-solid fa-paper-plane"></i> Envoyer la Réclamation</button>
+                        </form>
+                        <div id="claimResultBox" class="alert hidden"></div>
+                    </section>
+
+                    <section class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-envelope-open-text"></i>
+                            <h3>Mes Réclamations</h3>
+                        </div>
+                        <div id="mClaimsList"></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <section class="card" style="max-width:520px;">
+            <div class="card-header">
+                <i class="fa-solid fa-key"></i>
+                <h3>Changer mon Mot de Passe</h3>
+            </div>
+            <form onsubmit="handleChangePassword(event)">
+                <div class="form-group">
+                    <label>Mot de passe actuel</label>
+                    <input type="password" id="pwdCurrent" required autocomplete="current-password">
+                </div>
+                <div class="form-group">
+                    <label>Nouveau mot de passe (6 caractères minimum)</label>
+                    <input type="password" id="pwdNew" required minlength="6" maxlength="64" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label>Confirmer le nouveau mot de passe</label>
+                    <input type="password" id="pwdConfirm" required minlength="6" maxlength="64" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le Mot de Passe</button>
+            </form>
+            <div id="pwdResultBox" class="alert hidden"></div>
+        </section>
     </div>
 
     <script>
@@ -457,6 +639,7 @@
             let changed = false;
             members.forEach(m => {
                 if (!Array.isArray(m.credits)) { m.credits = []; changed = true; }
+                if (!Array.isArray(m.history)) { m.history = []; changed = true; }
                 m.credits.forEach((c, i) => {
                     if (!c.id) { c.id = 'CR-' + String(Date.now()).slice(-6) + '-' + i; changed = true; }
                     if (typeof c.repaid !== 'number') { c.repaid = 0; changed = true; }
@@ -476,6 +659,57 @@
             return round2((m.credits || []).reduce((s, c) => s + creditRemaining(c), 0));
         }
         normalizeMembers();
+
+        // ---------- Rôles, historique des opérations, réclamations ----------
+        let claims = store.get('avec_claims', []);
+        let currentUser = null;
+
+        // Un compte sans rôle (créé avant cette version) est un administrateur
+        function isAdmin(u) { return !!u && u.role !== 'member'; }
+        function requireAdmin() {
+            if (isAdmin(currentUser)) return true;
+            alert("Action réservée à l'administrateur.");
+            return false;
+        }
+        function findUser(username) {
+            const k = String(username || '').toLowerCase();
+            return users.find(x => String(x.username).toLowerCase() === k);
+        }
+        function setHidden(id, hidden) {
+            const el = document.getElementById(id);
+            if (hidden) el.classList.add('hidden'); else el.classList.remove('hidden');
+        }
+
+        const OP_LABELS = {
+            epargne: "Versement d'épargne",
+            credit: 'Crédit accordé',
+            remboursement: 'Remboursement',
+            correction: "Correction de l'administrateur"
+        };
+        // Garde une trace des opérations pour que le membre (et l'admin) puissent vérifier
+        function logOp(m, type, amount, note) {
+            if (!Array.isArray(m.history)) m.history = [];
+            m.history.push({ date: todayISO(), type: type, amount: round2(amount), note: note || '' });
+            if (m.history.length > 200) m.history = m.history.slice(-200);
+        }
+
+        // Crée ou réinitialise le compte d'un membre : identifiant = son ID, mot de passe par défaut à changer
+        async function setMemberPassword(memberId, password) {
+            if (users.some(x => String(x.username).toLowerCase() === memberId.toLowerCase() && x.role !== 'member')) return false;
+            const salt = generateSalt();
+            const hash = await hashPassword(password, salt);
+            const existing = users.find(x => x.role === 'member' && x.memberId === memberId);
+            if (existing) {
+                existing.salt = salt;
+                existing.hash = hash;
+                existing.mustChange = true;
+                delete existing.password;
+            } else {
+                users.push({ username: memberId, role: 'member', memberId: memberId, salt: salt, hash: hash, mustChange: true });
+            }
+            store.set('avec_users', users);
+            return true;
+        }
 
         // Génère un identifiant unique même après suppression de membres
         function nextMemberId() {
@@ -519,18 +753,30 @@
                 showAlert('authAlert', 'Le mot de passe doit contenir au moins 6 caractères.', 'error');
                 return;
             }
-            if (users.some(x => x.username.toLowerCase() === u.toLowerCase())) {
-                showAlert('authAlert', "Ce nom d'utilisateur existe déjà.", 'error');
+            if (users.length > 0) {
+                // Seul le tout premier compte (administrateur) peut être créé librement
+                showAlert('authAlert', "La création de compte est fermée. Les membres sont enregistrés par l'administrateur.", 'error');
+                refreshAuthTabs();
+                return;
+            }
+            if (/^MBR-\d+$/i.test(u)) {
+                showAlert('authAlert', "Ce nom est réservé aux identifiants des membres. Choisissez-en un autre.", 'error');
                 return;
             }
 
             const salt = generateSalt();
             const hash = await hashPassword(p, salt);
-            users.push({ username: u, salt: salt, hash: hash });
+            users.push({ username: u, role: 'admin', salt: salt, hash: hash });
             store.set('avec_users', users);
             e.target.reset();
+            refreshAuthTabs();
             switchAuthTab('login');
-            showAlert('authAlert', 'Compte créé avec succès ! Connectez-vous.', 'success');
+            showAlert('authAlert', 'Compte administrateur créé avec succès ! Connectez-vous.', 'success');
+        }
+
+        // L'onglet « Créer le compte administrateur » n'existe que tant qu'aucun compte n'a été créé
+        function refreshAuthTabs() {
+            setHidden('registerTabBtn', users.length > 0);
         }
 
         async function handleLogin(e) {
@@ -570,39 +816,144 @@
             }
         }
 
+        // Aiguille vers l'espace administrateur ou l'espace membre selon le rôle du compte
         function loadDashboard(username) {
-            document.getElementById('authSection').classList.add('hidden');
-            document.getElementById('dashboardSection').classList.remove('hidden');
-            document.getElementById('currentUserDisplay').textContent = username;
-            updateDashboard();
+            const user = findUser(username);
+            if (!user) { logout(); return; }
+            currentUser = user;
+            setHidden('authSection', true);
+
+            if (isAdmin(user)) {
+                setHidden('memberSection', true);
+                setHidden('dashboardSection', false);
+                document.getElementById('currentUserDisplay').textContent = user.username;
+                updateDashboard();
+            } else {
+                setHidden('dashboardSection', true);
+                setHidden('memberSection', false);
+                renderMemberPortal();
+            }
         }
 
         function logout() {
             try { localStorage.removeItem('avec_session'); } catch (e) {}
-            document.getElementById('dashboardSection').classList.add('hidden');
-            document.getElementById('authSection').classList.remove('hidden');
-            document.getElementById('authAlert').classList.add('hidden');
-            document.getElementById('creditResultBox').classList.add('hidden');
+            currentUser = null;
+            setHidden('dashboardSection', true);
+            setHidden('memberSection', true);
+            setHidden('authSection', false);
+            ['authAlert', 'creditResultBox', 'depositResultBox', 'repayResultBox', 'memberResultBox',
+             'claimResultBox', 'pwdResultBox', 'memberInfoHint'].forEach(id => setHidden(id, true));
+            refreshAuthTabs();
         }
 
         // ---------- Membres ----------
-        function handleAddMember(e) {
+        async function handleAddMember(e) {
             e.preventDefault();
+            if (!requireAdmin()) return;
+            const box = document.getElementById('memberResultBox');
             const name = document.getElementById('memName').value.trim();
             const phone = document.getElementById('memPhone').value.trim();
             const epargne = round2(parseFloat(document.getElementById('memEpargne').value));
+            const password = document.getElementById('memPassword').value;
 
             if (!name) return;
             if (!isFinite(epargne) || epargne < 0) {
                 alert("Le montant de l'épargne n'est pas valide.");
                 return;
             }
+            if (password.length < 6) {
+                box.className = 'alert alert-error';
+                box.textContent = 'Le mot de passe par défaut doit contenir au moins 6 caractères.';
+                return;
+            }
+            if (!cryptoAvailable()) {
+                box.className = 'alert alert-error';
+                box.textContent = "Ce navigateur ne permet pas de protéger les mots de passe. Ouvrez l'application en HTTPS (ex. GitHub Pages).";
+                return;
+            }
 
-            members.push({ id: nextMemberId(), name: name, phone: phone, epargne: epargne, credits: [] });
+            const member = { id: nextMemberId(), name: name, phone: phone, epargne: epargne, credits: [], history: [] };
+            if (epargne > 0) logOp(member, 'epargne', epargne, 'Épargne initiale');
+
+            if (!(await setMemberPassword(member.id, password))) {
+                box.className = 'alert alert-error';
+                box.textContent = "Cet identifiant est déjà utilisé par un autre compte.";
+                return;
+            }
+            members.push(member);
             store.set('avec_members', members);
 
             e.target.reset();
+            box.className = 'alert alert-success';
+            box.innerHTML = '<strong>Membre enregistré.</strong><br>' +
+                'Identifiant de connexion : <strong>' + escapeHtml(member.id) + '</strong><br>' +
+                'Mot de passe par défaut : <strong>' + escapeHtml(password) + '</strong><br>' +
+                '<small>Communiquez-les au membre : il devra choisir son propre mot de passe à sa première connexion.</small>';
             updateDashboard();
+        }
+
+        // Redéfinit le mot de passe par défaut d'un membre (oubli, ou membre créé avant cette version)
+        async function resetMemberPassword(id) {
+            if (!requireAdmin()) return;
+            const m = members.find(x => x.id === id);
+            if (!m) return;
+            if (!cryptoAvailable()) { alert("Ce navigateur ne permet pas de protéger les mots de passe. Ouvrez l'application en HTTPS."); return; }
+            const pwd = prompt('Mot de passe par défaut pour ' + m.name + ' (' + m.id + ') — 6 caractères minimum.\nLe membre devra le changer à sa prochaine connexion :', '');
+            if (pwd === null) return;
+            if (pwd.length < 6) { alert('Le mot de passe doit contenir au moins 6 caractères.'); return; }
+            if (!(await setMemberPassword(m.id, pwd))) { alert('Cet identifiant est déjà utilisé par un autre compte.'); return; }
+            updateDashboard();
+            alert('Accès défini.\nIdentifiant : ' + m.id + '\nMot de passe par défaut : ' + pwd);
+        }
+
+        // ---------- Corrections (administrateur) ----------
+        function correctEpargne(id) {
+            if (!requireAdmin()) return;
+            const m = members.find(x => x.id === id);
+            if (!m) return;
+            const v = prompt("Corriger l'épargne de " + m.name + ' (actuelle : $' + round2(m.epargne) + ') — nouveau total :', round2(m.epargne));
+            if (v === null) return;
+            const nv = round2(parseFloat(String(v).replace(',', '.')));
+            if (!isFinite(nv) || nv < 0) { alert('Montant invalide.'); return; }
+            const diff = round2(nv - (Number(m.epargne) || 0));
+            if (diff === 0) return;
+            m.epargne = nv;
+            logOp(m, 'correction', diff, "Épargne corrigée : nouveau total $" + nv);
+            store.set('avec_members', members);
+            updateDashboard();
+            displayMemberCreditInfo();
+        }
+
+        function correctRepaid(memberId, creditId) {
+            if (!requireAdmin()) return;
+            const m = members.find(x => x.id === memberId);
+            const c = m && (m.credits || []).find(x => x.id === creditId);
+            if (!c) return;
+            const v = prompt('Montant total déjà remboursé sur ce crédit de $' + round2(c.amount) + ' (actuel : $' + round2(c.repaid) + ') :', round2(c.repaid));
+            if (v === null) return;
+            const nv = round2(parseFloat(String(v).replace(',', '.')));
+            if (!isFinite(nv) || nv < 0 || nv > round2(c.amount)) { alert('Montant invalide (entre 0 et $' + round2(c.amount) + ').'); return; }
+            const diff = round2(nv - (Number(c.repaid) || 0));
+            if (diff === 0) return;
+            c.repaid = nv;
+            logOp(m, 'correction', diff, 'Remboursement corrigé sur le crédit du ' + (c.date || '') + ' : total remboursé $' + nv);
+            store.set('avec_members', members);
+            updateDashboard();
+            displayMemberCreditInfo();
+        }
+
+        function deleteCredit(memberId, creditId) {
+            if (!requireAdmin()) return;
+            const m = members.find(x => x.id === memberId);
+            const c = m && (m.credits || []).find(x => x.id === creditId);
+            if (!c) return;
+            if ((Number(c.repaid) || 0) > 0) { alert("Ce crédit a déjà des remboursements : corrigez d'abord le montant remboursé à 0."); return; }
+            if (!confirm('Annuler le crédit de $' + round2(c.amount) + ' accordé à ' + m.name + ' le ' + (c.date || '') + ' ?')) return;
+            m.credits = m.credits.filter(x => x.id !== creditId);
+            logOp(m, 'correction', -round2(c.amount), 'Crédit du ' + (c.date || '') + ' annulé');
+            store.set('avec_members', members);
+            updateDashboard();
+            displayMemberCreditInfo();
         }
 
         // Remplit une liste déroulante de membres en gardant la sélection courante
@@ -655,22 +1006,32 @@
                         else if (c.dueDate && c.dueDate < today) badge = '<span class="badge badge-late">En retard</span>';
                         else badge = '<span class="badge badge-due">En cours</span>';
 
+                        const cidAttr = escapeHtml(c.id);
                         creditsListHtml += '<li style="margin-bottom:4px;">$' + round2(amount) +
                             ' (Intérêt: $' + round2(interet) + ') ' + badge +
                             '<br><small style="color:var(--text-muted);">Reste : $' + restant +
-                            ' · Échéance : ' + escapeHtml(formatISOtoFR(c.dueDate)) + '</small></li>';
+                            ' · Échéance : ' + escapeHtml(formatISOtoFR(c.dueDate)) + '</small> ' +
+                            '<button class="btn-small" onclick="correctRepaid(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Corriger le montant remboursé"><i class="fa-solid fa-pen-to-square"></i></button>' +
+                            '<button class="btn-small danger" onclick="deleteCredit(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Annuler ce crédit"><i class="fa-solid fa-xmark"></i></button>' +
+                            '</li>';
                     });
                     creditsListHtml += '</ul>';
                 }
 
                 const idAttr = escapeHtml(m.id);
+                const hasAccess = users.some(x => x.role === 'member' && x.memberId === m.id);
+                const accessBadge = hasAccess
+                    ? '<span class="badge badge-ok">Accès actif</span>'
+                    : '<span class="badge badge-due">Pas d\'accès</span>';
                 rows += '<tr>' +
                     '<td><strong>' + idAttr + '</strong></td>' +
-                    '<td>' + escapeHtml(m.name) + '<br><small style="color:var(--text-muted);">' + escapeHtml(m.phone || '') + '</small></td>' +
+                    '<td>' + escapeHtml(m.name) + '<br><small style="color:var(--text-muted);">' + escapeHtml(m.phone || '') + '</small><br>' + accessBadge + '</td>' +
                     '<td><strong>$' + round2(epargne) + '</strong></td>' +
                     '<td>' + creditsListHtml + '</td>' +
                     '<td style="white-space:nowrap;">' +
-                        '<button class="btn-small" onclick="editMember(\'' + idAttr + '\')" title="Modifier"><i class="fa-solid fa-pen"></i></button>' +
+                        '<button class="btn-small" onclick="editMember(\'' + idAttr + '\')" title="Modifier le nom / téléphone"><i class="fa-solid fa-pen"></i></button>' +
+                        '<button class="btn-small" onclick="correctEpargne(\'' + idAttr + '\')" title="Corriger l\'épargne"><i class="fa-solid fa-coins"></i></button>' +
+                        '<button class="btn-small" onclick="resetMemberPassword(\'' + idAttr + '\')" title="Définir / réinitialiser le mot de passe par défaut"><i class="fa-solid fa-key"></i></button>' +
                         '<button class="btn-small danger" onclick="deleteMember(\'' + idAttr + '\')" title="Supprimer"><i class="fa-solid fa-trash"></i></button>' +
                     '</td>' +
                     '</tr>';
@@ -688,6 +1049,8 @@
             document.getElementById('statTotalRestant').textContent = '$' + round2(totalRestant);
             document.getElementById('statTotalInterets').textContent = '$' + round2(totalInterets);
             document.getElementById('statTotalMembres').textContent = members.length;
+
+            renderAdminClaims();
         }
 
         function displayMemberCreditInfo() {
@@ -711,6 +1074,7 @@
 
         // ---------- Modifier / supprimer un membre ----------
         function editMember(id) {
+            if (!requireAdmin()) return;
             const m = members.find(x => x.id === id);
             if (!m) return;
             const name = prompt('Nom & Post-nom du membre :', m.name);
@@ -725,15 +1089,20 @@
         }
 
         function deleteMember(id) {
+            if (!requireAdmin()) return;
             const m = members.find(x => x.id === id);
             if (!m) return;
             if (memberOutstanding(m) > 0) {
                 alert('Impossible de supprimer ' + m.name + ' : il lui reste $' + memberOutstanding(m) + ' de crédit à rembourser.');
                 return;
             }
-            if (!confirm('Supprimer définitivement le membre ' + m.name + ' (' + m.id + ') et son historique ?')) return;
+            if (!confirm('Supprimer définitivement le membre ' + m.name + ' (' + m.id + '), son accès et ses réclamations ?')) return;
             members = members.filter(x => x.id !== id);
+            users = users.filter(x => !(x.role === 'member' && x.memberId === id));
+            claims = claims.filter(c => c.memberId !== id);
             store.set('avec_members', members);
+            store.set('avec_users', users);
+            store.set('avec_claims', claims);
             document.getElementById('memberInfoHint').classList.add('hidden');
             updateDashboard();
         }
@@ -741,6 +1110,7 @@
         // ---------- Versement d'épargne ----------
         function handleDeposit(e) {
             e.preventDefault();
+            if (!requireAdmin()) return;
             const box = document.getElementById('depositResultBox');
             const member = members.find(m => m.id === document.getElementById('depositMemberSelect').value);
             const amount = round2(parseFloat(document.getElementById('depositAmount').value));
@@ -751,6 +1121,7 @@
                 return;
             }
             member.epargne = round2((Number(member.epargne) || 0) + amount);
+            logOp(member, 'epargne', amount);
             store.set('avec_members', members);
             box.className = 'alert alert-success';
             box.innerHTML = '<strong>Versement enregistré.</strong> Nouvelle épargne de ' + escapeHtml(member.name) + ' : $' + member.epargne;
@@ -786,6 +1157,7 @@
 
         function handleRepay(e) {
             e.preventDefault();
+            if (!requireAdmin()) return;
             const box = document.getElementById('repayResultBox');
             const member = members.find(m => m.id === document.getElementById('repayMemberSelect').value);
             if (!member) return;
@@ -808,6 +1180,7 @@
                 return;
             }
             credit.repaid = round2((Number(credit.repaid) || 0) + amount);
+            logOp(member, 'remboursement', amount, 'Crédit du ' + (credit.date || ''));
             store.set('avec_members', members);
             const nouveauReste = creditRemaining(credit);
             box.className = 'alert alert-success';
@@ -826,6 +1199,7 @@
             return '"' + safe.replace(/"/g, '""') + '"';
         }
         function exportCSV() {
+            if (!requireAdmin()) return;
             const header = ['ID', 'Nom', 'Téléphone', 'Épargne ($)', 'Crédit ($)', 'Intérêt ($)', 'Remboursé ($)', 'Reste ($)', 'Date du crédit', 'Échéance', 'Statut'];
             const lines = [header.map(csvCell).join(';')];
             const today = todayISO();
@@ -841,7 +1215,7 @@
                     });
                 }
             });
-            const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -855,6 +1229,7 @@
         // ---------- Crédits ----------
         function handleCreditCalc(e) {
             e.preventDefault();
+            if (!requireAdmin()) return;
             const memId = document.getElementById('creditMemberSelect').value;
             const amount = round2(parseFloat(document.getElementById('calcCreditAmount').value));
             const resBox = document.getElementById('creditResultBox');
@@ -891,6 +1266,7 @@
                     date: now.toLocaleDateString('fr-FR'),
                     dueDate: addMonthsISO(now, 3)
                 });
+                logOp(member, 'credit', amount, 'Net versé : $' + net + ' (intérêt 10 % : $' + interet + ')');
                 store.set('avec_members', members);
 
                 resBox.className = 'alert alert-success';
@@ -914,15 +1290,240 @@
             el.classList.remove('hidden');
         }
 
+        // ---------- Espace membre (lecture seule) ----------
+        // Le membre connecté ne voit que SA fiche : l'identifiant vient de son compte, jamais d'un champ modifiable.
+        function renderMemberPortal() {
+            const user = currentUser;
+            const m = user && members.find(x => x.id === user.memberId);
+            if (!m) {
+                document.getElementById('memberWelcome').textContent = "Votre fiche membre est introuvable. Contactez l'administrateur.";
+                setHidden('memberDataWrap', true);
+                return;
+            }
+            const must = !!user.mustChange;
+            const today = todayISO();
+
+            document.getElementById('memberUserDisplay').textContent = m.name + ' (' + m.id + ')';
+            document.getElementById('memberWelcome').textContent = 'Bonjour ' + m.name + ', voici votre situation.';
+            setHidden('memberPwdNotice', !must);
+            // Tant que le mot de passe par défaut n'est pas changé, aucune donnée n'est affichée
+            setHidden('memberDataWrap', must);
+            if (must) return;
+
+            let totalCredits = 0;
+            let totalRestant = 0;
+            let rows = '';
+            (m.credits || []).forEach(c => {
+                const restant = creditRemaining(c);
+                totalCredits += Number(c.amount) || 0;
+                totalRestant += restant;
+                let badge;
+                if (restant === 0) badge = '<span class="badge badge-ok">Remboursé</span>';
+                else if (c.dueDate && c.dueDate < today) badge = '<span class="badge badge-late">En retard</span>';
+                else badge = '<span class="badge badge-due">En cours</span>';
+                rows += '<tr>' +
+                    '<td>' + escapeHtml(c.date || '') + '</td>' +
+                    '<td>$' + round2(c.amount) + '</td>' +
+                    '<td>$' + round2(c.interet) + '</td>' +
+                    '<td>$' + round2(c.repaid) + '</td>' +
+                    '<td><strong>$' + restant + '</strong></td>' +
+                    '<td>' + escapeHtml(formatISOtoFR(c.dueDate)) + '</td>' +
+                    '<td>' + badge + '</td>' +
+                    '</tr>';
+            });
+            document.getElementById('mCreditsBody').innerHTML = rows ||
+                '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Aucun crédit.</td></tr>';
+
+            document.getElementById('mStatEpargne').textContent = '$' + round2(m.epargne);
+            document.getElementById('mStatCredits').textContent = '$' + round2(totalCredits);
+            document.getElementById('mStatRestant').textContent = '$' + round2(totalRestant);
+
+            const hist = (m.history || []).slice().reverse();
+            let hrows = '';
+            hist.forEach(h => {
+                const label = OP_LABELS[h.type] || 'Opération';
+                // Les corrections sont signées (+ ajout / − retrait) ; les autres opérations sont des montants simples
+                const amt = Number(h.amount) || 0;
+                const shown = h.type === 'correction' ? (amt > 0 ? '+' : '−') + '$' + round2(Math.abs(amt)) : '$' + round2(amt);
+                hrows += '<tr>' +
+                    '<td>' + escapeHtml(formatISOtoFR(h.date)) + '</td>' +
+                    '<td>' + escapeHtml(label) + (h.note ? '<br><small style="color:var(--text-muted);">' + escapeHtml(h.note) + '</small>' : '') + '</td>' +
+                    '<td>' + shown + '</td>' +
+                    '</tr>';
+            });
+            document.getElementById('mHistoryBody').innerHTML = hrows ||
+                '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">Aucune opération enregistrée.</td></tr>';
+
+            renderMemberClaims(m.id);
+        }
+
+        // ---------- Mot de passe du membre ----------
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            const box = document.getElementById('pwdResultBox');
+            const user = currentUser;
+            if (!user || isAdmin(user)) return;
+            const cur = document.getElementById('pwdCurrent').value;
+            const nw = document.getElementById('pwdNew').value;
+            const conf = document.getElementById('pwdConfirm').value;
+
+            if (!cryptoAvailable()) {
+                box.className = 'alert alert-error';
+                box.textContent = "Ce navigateur ne permet pas de protéger les mots de passe. Ouvrez l'application en HTTPS.";
+                return;
+            }
+            if (!user.hash || (await hashPassword(cur, user.salt)) !== user.hash) {
+                box.className = 'alert alert-error';
+                box.textContent = 'Le mot de passe actuel est incorrect.';
+                return;
+            }
+            if (nw.length < 6) {
+                box.className = 'alert alert-error';
+                box.textContent = 'Le nouveau mot de passe doit contenir au moins 6 caractères.';
+                return;
+            }
+            if (nw !== conf) {
+                box.className = 'alert alert-error';
+                box.textContent = 'La confirmation ne correspond pas au nouveau mot de passe.';
+                return;
+            }
+            if (nw === cur) {
+                box.className = 'alert alert-error';
+                box.textContent = "Le nouveau mot de passe doit être différent de l'ancien.";
+                return;
+            }
+            user.salt = generateSalt();
+            user.hash = await hashPassword(nw, user.salt);
+            user.mustChange = false;
+            store.set('avec_users', users);
+            e.target.reset();
+            box.className = 'alert alert-success';
+            box.textContent = 'Mot de passe modifié avec succès.';
+            renderMemberPortal();
+        }
+
+        // ---------- Réclamations ----------
+        const CLAIM_SUBJECTS = ['Épargne', 'Crédit', 'Remboursement', 'Autre'];
+
+        function handleClaim(e) {
+            e.preventDefault();
+            const box = document.getElementById('claimResultBox');
+            const user = currentUser;
+            if (!user || isAdmin(user)) return;
+            const subject = document.getElementById('claimSubject').value;
+            const message = document.getElementById('claimMessage').value.trim();
+
+            if (CLAIM_SUBJECTS.indexOf(subject) === -1) return;
+            if (message.length < 5 || message.length > 500) {
+                box.className = 'alert alert-error';
+                box.textContent = 'Votre message doit contenir entre 5 et 500 caractères.';
+                return;
+            }
+            const openCount = claims.filter(c => c.memberId === user.memberId && c.status === 'ouverte').length;
+            if (openCount >= 5) {
+                box.className = 'alert alert-error';
+                box.textContent = "Vous avez déjà 5 réclamations en attente. Merci d'attendre la réponse de l'administrateur.";
+                return;
+            }
+            claims.push({
+                id: 'RC-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+                memberId: user.memberId,
+                date: todayISO(),
+                subject: subject,
+                message: message,
+                status: 'ouverte',
+                response: '',
+                responseDate: ''
+            });
+            store.set('avec_claims', claims);
+            e.target.reset();
+            box.className = 'alert alert-success';
+            box.textContent = "Réclamation envoyée. L'administrateur la verra et vous répondra ici.";
+            renderMemberClaims(user.memberId);
+        }
+
+        function renderMemberClaims(memberId) {
+            const mine = claims.filter(c => c.memberId === memberId).slice().reverse();
+            let html = '';
+            mine.forEach(c => {
+                const done = c.status === 'traitée';
+                html += '<div class="claim-item ' + (done ? 'done' : 'open') + '">' +
+                    '<div class="claim-meta">' + escapeHtml(formatISOtoFR(c.date)) + ' · ' + escapeHtml(c.subject) + ' · ' +
+                    (done ? '<span class="badge badge-ok">Traitée</span>' : '<span class="badge badge-due">En attente</span>') + '</div>' +
+                    '<div class="claim-msg">' + escapeHtml(c.message) + '</div>' +
+                    (c.response ? '<div class="claim-reply"><strong>Réponse de l\'administrateur' +
+                        (c.responseDate ? ' (' + escapeHtml(formatISOtoFR(c.responseDate)) + ')' : '') + ' :</strong><br>' + escapeHtml(c.response) + '</div>' : '') +
+                    '</div>';
+            });
+            document.getElementById('mClaimsList').innerHTML = html ||
+                '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune réclamation.</p>';
+        }
+
+        // Côté administrateur : liste de toutes les réclamations, les ouvertes d'abord
+        function renderAdminClaims() {
+            const memberName = id => { const m = members.find(x => x.id === id); return m ? m.name : id; };
+            const sorted = claims.slice().sort((a, b) => {
+                if (a.status !== b.status) return a.status === 'ouverte' ? -1 : 1;
+                return String(b.id).localeCompare(String(a.id));
+            });
+            let html = '';
+            sorted.forEach(c => {
+                const done = c.status === 'traitée';
+                const cid = escapeHtml(c.id);
+                html += '<div class="claim-item ' + (done ? 'done' : 'open') + '">' +
+                    '<div class="claim-meta"><strong>' + escapeHtml(memberName(c.memberId)) + '</strong> (' + escapeHtml(c.memberId) + ') · ' +
+                    escapeHtml(formatISOtoFR(c.date)) + ' · ' + escapeHtml(c.subject) + ' · ' +
+                    (done ? '<span class="badge badge-ok">Traitée</span>' : '<span class="badge badge-late">Ouverte</span>') + '</div>' +
+                    '<div class="claim-msg">' + escapeHtml(c.message) + '</div>';
+                if (done) {
+                    html += (c.response ? '<div class="claim-reply"><strong>Votre réponse :</strong><br>' + escapeHtml(c.response) + '</div>' : '') +
+                        '<div class="claim-actions"><button class="btn-small" onclick="reopenClaim(\'' + cid + '\')">Rouvrir</button></div>';
+                } else {
+                    html += '<div class="claim-actions">' +
+                        '<textarea id="claimReply-' + cid + '" rows="2" maxlength="500" placeholder="Votre réponse au membre (ex. : épargne corrigée)"></textarea>' +
+                        '<button class="btn-small" onclick="answerClaim(\'' + cid + '\')"><i class="fa-solid fa-check"></i> Répondre et marquer comme traitée</button>' +
+                        '</div>';
+                }
+                html += '</div>';
+            });
+            document.getElementById('claimsAdminList').innerHTML = html ||
+                '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune réclamation pour le moment.</p>';
+            document.getElementById('statOpenClaims').textContent = claims.filter(c => c.status === 'ouverte').length;
+        }
+
+        function answerClaim(id) {
+            if (!requireAdmin()) return;
+            const c = claims.find(x => x.id === id);
+            if (!c) return;
+            const field = document.getElementById('claimReply-' + id);
+            const text = field ? field.value.trim().slice(0, 500) : '';
+            c.status = 'traitée';
+            c.response = text || 'Votre réclamation a été examinée.';
+            c.responseDate = todayISO();
+            store.set('avec_claims', claims);
+            renderAdminClaims();
+        }
+
+        function reopenClaim(id) {
+            if (!requireAdmin()) return;
+            const c = claims.find(x => x.id === id);
+            if (!c) return;
+            c.status = 'ouverte';
+            store.set('avec_claims', claims);
+            renderAdminClaims();
+        }
+
         // ---------- Démarrage ----------
         window.onload = function () {
+            refreshAuthTabs();
             const sess = store.get('avec_session', null);
             // La session n'est reprise que si le compte existe encore
             if (sess && users.some(u => u.username === sess)) {
                 loadDashboard(sess);
             } else if (users.length === 0) {
+                setHidden('registerTabBtn', false);
                 switchAuthTab('register');
-                showAlert('authAlert', 'Aucun compte pour le moment : créez le premier compte.', 'success');
+                showAlert('authAlert', "Aucun compte pour le moment : créez le compte administrateur.", 'success');
             }
         };
     </script>
