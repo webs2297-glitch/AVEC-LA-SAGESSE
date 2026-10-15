@@ -1,0 +1,98 @@
+rules_version = '2';
+
+// Règles de sécurité de la base AVEC LA SAGESSE.
+// À coller dans Firebase Console > Firestore Database > onglet « Règles » > Publier.
+//
+// Principe :
+//  - l'administrateur (un e-mail VÉRIFIÉ, à écrire ci-dessous) peut tout lire et tout modifier ;
+//  - un membre connecté ne peut lire QUE sa propre fiche, ses réclamations et ses demandes ;
+//  - un membre ne peut rien modifier : il peut seulement créer une réclamation ou une demande
+//    à son nom, et marquer son mot de passe par défaut comme changé.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // >>> REMPLACEZ par VOTRE adresse e-mail d'administrateur, en minuscules <<<
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'votre-email@exemple.com';
+    }
+
+    function profilePath() {
+      return /databases/$(database)/documents/profiles/$(request.auth.uid);
+    }
+    function hasProfile() {
+      return signedIn() && exists(profilePath());
+    }
+    function myMemberId() {
+      return get(profilePath()).data.memberId;
+    }
+
+    // Numéro de version du compte d'un membre (permet de réinitialiser son mot de passe).
+    // Lecture d'un seul document autorisée avant connexion ; pas de liste.
+    match /loginIndex/{memberId} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Lien entre un compte de connexion et un membre.
+    match /profiles/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mustChange'])
+        && request.resource.data.mustChange == false
+      );
+    }
+
+    // Fiche du membre : épargne, crédits, historique.
+    match /members/{memberId} {
+      allow read: if isAdmin() || (hasProfile() && myMemberId() == memberId);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Réclamations.
+    match /claims/{claimId} {
+      allow read: if isAdmin() || (hasProfile() && resource.data.memberId == myMemberId());
+      allow create: if isAdmin() || (
+        hasProfile()
+        && request.resource.data.keys().hasOnly(['id', 'memberId', 'date', 'subject', 'message', 'status', 'response', 'responseDate'])
+        && request.resource.data.id == claimId
+        && request.resource.data.memberId == myMemberId()
+        && request.resource.data.subject in ['Épargne', 'Crédit', 'Remboursement', 'Autre']
+        && request.resource.data.message is string
+        && request.resource.data.message.size() >= 5
+        && request.resource.data.message.size() <= 500
+        && request.resource.data.status == 'ouverte'
+        && request.resource.data.response == ''
+      );
+      allow update, delete: if isAdmin();
+    }
+
+    // Demandes de crédit / retrait.
+    match /requests/{requestId} {
+      allow read: if isAdmin() || (hasProfile() && resource.data.memberId == myMemberId());
+      allow create: if isAdmin() || (
+        hasProfile()
+        && request.resource.data.keys().hasOnly(['id', 'memberId', 'type', 'amount', 'note', 'date', 'status', 'decision', 'decisionDate'])
+        && request.resource.data.id == requestId
+        && request.resource.data.memberId == myMemberId()
+        && request.resource.data.type in ['credit', 'retrait']
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.amount <= 1000000
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 300
+        && request.resource.data.status == 'en attente'
+        && request.resource.data.decision == ''
+      );
+      allow update, delete: if isAdmin();
+    }
+  }
+}

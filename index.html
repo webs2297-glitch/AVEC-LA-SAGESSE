@@ -98,6 +98,7 @@
         .bg-warning { background: var(--warning); }
         .bg-purple { background: #8b5cf6; }
         .bg-red { background: var(--danger); }
+        .sync-status { position: fixed; right: 12px; bottom: 12px; padding: 6px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); z-index: 50; }
         textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; resize: vertical; }
         textarea:focus { outline: none; border-color: var(--primary); }
         .claim-item { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fff; }
@@ -159,6 +160,7 @@
     </style>
 </head>
 <body>
+    <div id="syncStatus" class="sync-status hidden"></div>
 
     <!-- SECTION AUTHENTIFICATION -->
     <div id="authSection" class="auth-container">
@@ -174,7 +176,7 @@
 
         <form id="loginForm" onsubmit="handleLogin(event)">
             <div class="form-group">
-                <label>Nom d'utilisateur <small style="color:var(--text-muted);font-weight:400;">(membres : votre identifiant, ex. MBR-001)</small></label>
+                <label>Nom d'utilisateur <small id="loginUserHint" style="color:var(--text-muted);font-weight:400;">(membres : votre identifiant, ex. MBR-001)</small></label>
                 <input type="text" id="loginUsername" required autocomplete="username">
             </div>
             <div class="form-group">
@@ -186,7 +188,7 @@
 
         <form id="registerForm" class="hidden" onsubmit="handleRegister(event)">
             <div class="form-group">
-                <label>Choisissez un nom d'utilisateur administrateur</label>
+                <label id="regUserLabel">Choisissez un nom d'utilisateur administrateur</label>
                 <input type="text" id="regUsername" required placeholder="Ex: prince" autocomplete="username">
             </div>
             <div class="form-group">
@@ -601,8 +603,16 @@
         </section>
     </div>
 
+    <script src="firebase-config.js"></script>
+    <script type="module" src="firebase-adapter.js"></script>
     <script>
         // ---------- Utilitaires ----------
+
+        // Mode en ligne (Firebase) si firebase-config.js est rempli, sinon mode local (navigateur seulement)
+        const FIREBASE_CFG = window.FIREBASE_CONFIG || null;
+        const CLOUD = !!(FIREBASE_CFG && /^AIza[\w-]{20,}$/.test(String(FIREBASE_CFG.apiKey || '')) && FIREBASE_CFG.projectId);
+        const CLOUD_COLLECTIONS = { avec_members: 'members', avec_claims: 'claims', avec_requests: 'requests' };
+        function F() { return window.FB; }
 
         // Lecture/écriture sécurisées du localStorage (évite le plantage si les données sont corrompues)
         const store = {
@@ -615,6 +625,11 @@
                 }
             },
             set(key, value) {
+                if (CLOUD) {
+                    // En mode en ligne, les données vont dans Firebase (jamais dans le navigateur)
+                    if (CLOUD_COLLECTIONS[key]) cloudPush(CLOUD_COLLECTIONS[key]);
+                    return true;
+                }
                 try {
                     localStorage.setItem(key, JSON.stringify(value));
                     return true;
@@ -658,8 +673,8 @@
         }
 
         // ---------- Données ----------
-        let users = store.get('avec_users', []);
-        let members = store.get('avec_members', [
+        let users = CLOUD ? [] : store.get('avec_users', []);
+        let members = CLOUD ? [] : store.get('avec_members', [
             { id: 'MBR-001', name: 'Kabuo Justin', phone: '0990000000', epargne: 150, credits: [] },
             { id: 'MBR-002', name: 'Masika Grace', phone: '0810000000', epargne: 300, credits: [] }
         ]);
@@ -714,14 +729,20 @@
         normalizeMembers();
 
         // ---------- Rôles, historique des opérations, réclamations ----------
-        let claims = store.get('avec_claims', []);
-        let requests = store.get('avec_requests', []);
+        let claims = CLOUD ? [] : store.get('avec_claims', []);
+        let requests = CLOUD ? [] : store.get('avec_requests', []);
         let currentUser = null;
 
         // Un compte sans rôle (créé avant cette version) est un administrateur
         function isAdmin(u) { return !!u && u.role !== 'member'; }
         function requireAdmin() {
-            if (isAdmin(currentUser)) return true;
+            if (isAdmin(currentUser)) {
+                if (CLOUD && !cloudLoaded.members) {
+                    alert('Chargement des données en cours : réessayez dans un instant.');
+                    return false;
+                }
+                return true;
+            }
             alert("Action réservée à l'administrateur.");
             return false;
         }
@@ -776,6 +797,275 @@
             return 'MBR-' + String(max + 1).padStart(3, '0');
         }
 
+        // ---------- Synchronisation en ligne (Firebase) ----------
+        const cloudLoaded = { members: false, claims: false, requests: false };
+        const lastSynced = { members: {}, claims: {}, requests: {} };
+        let stopListening = null;
+        let pushChain = Promise.resolve();
+        let importChecked = false;
+
+        function setSync(state, msg) {
+            const el = document.getElementById('syncStatus');
+            if (!el) return;
+            const map = {
+                local: ['#6b7280', 'Mode local (non synchronisé)'],
+                connecting: ['#f59e0b', 'Connexion…'],
+                online: ['#10b981', 'En ligne'],
+                error: ['#ef4444', msg || 'Erreur de synchronisation']
+            };
+            const v = map[state] || map.local;
+            el.innerHTML = '<span style="color:' + v[0] + '">●</span> ' + escapeHtml(v[1]);
+            setHidden('syncStatus', false);
+        }
+
+        function errText(err) {
+            return (err && err.code) ? err.code : String((err && err.message) || err || 'erreur inconnue');
+        }
+
+        function authErrorMessage(err, ctx) {
+            const c = err && err.code ? err.code : '';
+            if (['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email', 'auth/invalid-login-credentials'].indexOf(c) > -1) {
+                return ctx === 'password' ? 'Le mot de passe actuel est incorrect.' : "Identifiant ou mot de passe incorrect.";
+            }
+            if (c === 'auth/too-many-requests') return 'Trop de tentatives. Patientez quelques minutes avant de réessayer.';
+            if (c === 'auth/network-request-failed') return 'Pas de connexion internet.';
+            if (c === 'auth/operation-not-allowed') return "La connexion par e-mail/mot de passe n'est pas activée dans Firebase (voir GUIDE-FIREBASE.md).";
+            if (c === 'auth/email-already-in-use') return 'Cette adresse e-mail est déjà utilisée : connectez-vous.';
+            if (c === 'auth/weak-password') return 'Mot de passe trop faible (6 caractères minimum).';
+            if (c === 'avec/flag-not-saved') return "Mot de passe modifié, mais l'enregistrement a échoué. Reconnectez-vous avec le nouveau mot de passe.";
+            return 'Erreur : ' + (c || (err && err.message) || 'inconnue');
+        }
+
+        // Représentation stable d'un objet (clés triées) pour détecter ce qui a réellement changé
+        function canon(v) {
+            if (Array.isArray(v)) return '[' + v.map(canon).join(',') + ']';
+            if (v && typeof v === 'object') {
+                return '{' + Object.keys(v).sort().filter(k => v[k] !== undefined)
+                    .map(k => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}';
+            }
+            return JSON.stringify(v);
+        }
+
+        // Envoie vers Firebase uniquement ce qui a changé depuis la dernière synchronisation
+        function cloudPush(name) {
+            if (!CLOUD || !F() || !currentUser) return;
+            const admin = isAdmin(currentUser);
+            if (name === 'members' && !admin) return; // un membre ne modifie jamais sa fiche
+            const arr = name === 'members' ? members : (name === 'claims' ? claims : requests);
+            const known = lastSynced[name];
+            const upserts = [];
+            const present = {};
+            arr.forEach(item => {
+                present[item.id] = true;
+                const c = canon(item);
+                if (known[item.id] !== c) upserts.push({ id: item.id, data: JSON.parse(JSON.stringify(item)), c: c });
+            });
+            const deletes = admin ? Object.keys(known).filter(id => !present[id]) : [];
+            if (!upserts.length && !deletes.length) return;
+            upserts.forEach(u => { known[u.id] = u.c; });
+            deletes.forEach(id => { delete known[id]; });
+            pushChain = pushChain
+                .then(() => F().write(name, upserts.map(u => ({ id: u.id, data: u.data })), deletes))
+                .catch(err => {
+                    // Échec : on oublie ces éléments pour que le prochain envoi les retente
+                    upserts.forEach(u => { delete known[u.id]; });
+                    deletes.forEach(id => { known[id] = 'a-supprimer'; });
+                    setSync('error', 'Synchronisation impossible : ' + errText(err));
+                });
+        }
+
+        // Reçoit l'état de la base : remplace les données locales et réaffiche
+        function syncSnapshot(name) {
+            const arr = name === 'members' ? members : (name === 'claims' ? claims : requests);
+            const known = {};
+            arr.forEach(item => { known[item.id] = canon(item); });
+            lastSynced[name] = known;
+            cloudLoaded[name] = true;
+            setSync('online');
+            if (!currentUser) return;
+            if (isAdmin(currentUser)) {
+                if (name === 'members') { normalizeMembers(); maybeImportLocal(); }
+                updateDashboard();
+            } else {
+                renderMemberPortal();
+            }
+        }
+
+        function onSyncError(err) {
+            setSync('error', 'Synchronisation impossible : ' + errText(err));
+            if (err && err.code === 'permission-denied') {
+                const admin = isAdmin(currentUser);
+                logout();
+                showAlert('authAlert', admin
+                    ? "Accès refusé par la base. Vérifiez que les règles Firestore contiennent bien votre adresse e-mail d'administrateur et que cette adresse est vérifiée (voir GUIDE-FIREBASE.md)."
+                    : "Accès refusé. Contactez l'administrateur.", 'error');
+            }
+        }
+
+        function startListening() {
+            const h = {
+                members: a => { members = a; syncSnapshot('members'); },
+                claims: a => { claims = a; syncSnapshot('claims'); },
+                requests: a => { requests = a; syncSnapshot('requests'); },
+                error: onSyncError
+            };
+            stopListening = isAdmin(currentUser) ? F().listenAdmin(h) : F().listenMember(currentUser.memberId, h);
+        }
+
+        function resetCloudState() {
+            members = []; claims = []; requests = [];
+            cloudLoaded.members = cloudLoaded.claims = cloudLoaded.requests = false;
+            lastSynced.members = {}; lastSynced.claims = {}; lastSynced.requests = {};
+            importChecked = false;
+        }
+
+        // Première connexion de l'administrateur : propose d'envoyer les données déjà saisies dans ce navigateur
+        function maybeImportLocal() {
+            if (importChecked || !isAdmin(currentUser)) return;
+            importChecked = true;
+            if (members.length > 0) return;
+            const local = store.get('avec_members', null);
+            if (!Array.isArray(local) || local.length === 0) return;
+            if (!confirm('Des données existent dans ce navigateur (' + local.length + ' membre(s)). Les envoyer vers la base en ligne ?\n\n' +
+                'Ensuite, définissez un mot de passe par défaut pour chaque membre avec le bouton « clé ».')) return;
+            members = local;
+            claims = store.get('avec_claims', []);
+            requests = store.get('avec_requests', []);
+            normalizeMembers();
+            store.set('avec_members', members);
+            store.set('avec_claims', claims);
+            store.set('avec_requests', requests);
+        }
+
+        // Crée (ou remplace) l'accès d'un membre. Renvoie { uid } en ligne, {} en local, ou null si l'identifiant est déjà pris.
+        async function provisionAccess(memberId, password, oldUid) {
+            if (CLOUD) {
+                const r = await F().provisionMember(memberId, password, oldUid);
+                return { uid: r.uid };
+            }
+            return (await setMemberPassword(memberId, password)) ? {} : null;
+        }
+
+        // Remplace le contenu d'une zone en conservant les textes en cours de saisie (réponses de l'administrateur)
+        function setHtmlKeepFields(id, html) {
+            const box = document.getElementById(id);
+            const kept = {};
+            let activeId = null;
+            if (box.querySelectorAll) {
+                box.querySelectorAll('textarea').forEach(t => { if (t.value) kept[t.id] = t.value; });
+                if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') activeId = document.activeElement.id;
+            }
+            box.innerHTML = html;
+            Object.keys(kept).forEach(k => {
+                const t = document.getElementById(k);
+                if (!t) return;
+                t.value = kept[k];
+                if (k === activeId && t.focus) { t.focus(); if (t.setSelectionRange) t.setSelectionRange(t.value.length, t.value.length); }
+            });
+        }
+
+        async function cloudRegister(e, u, p) {
+            if (!F()) { showAlert('authAlert', 'Firebase est inaccessible (connexion internet ?).', 'error'); return; }
+            const email = u.toLowerCase();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || F().isMemberEmail(email)) {
+                showAlert('authAlert', "Entrez votre adresse e-mail d'administrateur (celle écrite dans les règles Firestore).", 'error');
+                return;
+            }
+            if (p.length < 6) {
+                showAlert('authAlert', 'Le mot de passe doit contenir au moins 6 caractères.', 'error');
+                return;
+            }
+            try {
+                await F().signUpAdmin(email, p);
+                e.target.reset();
+                switchAuthTab('login');
+                showAlert('authAlert', 'Compte créé. Un e-mail de vérification vous a été envoyé : cliquez sur le lien, puis connectez-vous.', 'success');
+            } catch (err) {
+                showAlert('authAlert', authErrorMessage(err), 'error');
+            }
+        }
+
+        async function cloudLogin(e, u, p) {
+            if (!F()) { showAlert('authAlert', 'Firebase est inaccessible (connexion internet ?).', 'error'); return; }
+            try {
+                let email;
+                if (u.indexOf('@') > -1) {
+                    email = u.toLowerCase();
+                    if (F().isMemberEmail(email)) throw { code: 'auth/invalid-credential' };
+                } else {
+                    const id = u.toUpperCase();
+                    if (!/^MBR-\d+$/.test(id)) throw { code: 'auth/invalid-credential' };
+                    email = F().memberEmail(id, await F().getLoginGen(id));
+                }
+                const user = await F().login(email, p);
+                if (!F().isMemberEmail(user.email) && !user.emailVerified) {
+                    try { await F().sendVerification(); } catch (e2) { /* sans importance */ }
+                    await F().logout();
+                    showAlert('authAlert', "Adresse e-mail non vérifiée. Un nouvel e-mail de vérification vient de vous être envoyé : cliquez sur le lien, puis reconnectez-vous.", 'error');
+                    return;
+                }
+                e.target.reset(); // la suite est gérée par onCloudAuth
+            } catch (err) {
+                showAlert('authAlert', authErrorMessage(err), 'error');
+            }
+        }
+
+        // Appelé par Firebase à chaque connexion / déconnexion (y compris à l'ouverture de la page si la session existe)
+        async function onCloudAuth(user) {
+            if (stopListening) { stopListening(); stopListening = null; }
+            if (!user) {
+                resetCloudState();
+                currentUser = null;
+                setHidden('dashboardSection', true);
+                setHidden('memberSection', true);
+                setHidden('authSection', false);
+                setSync('online');
+                return;
+            }
+            try {
+                if (F().isMemberEmail(user.email)) {
+                    const profile = await F().getProfile(user.uid);
+                    if (!profile || !profile.memberId) {
+                        await F().logout();
+                        showAlert('authAlert', "Ce compte n'est plus actif. Contactez l'administrateur.", 'error');
+                        return;
+                    }
+                    currentUser = { username: profile.memberId, role: 'member', memberId: profile.memberId, mustChange: !!profile.mustChange, uid: user.uid };
+                    setHidden('authSection', true);
+                    setHidden('dashboardSection', true);
+                    setHidden('memberSection', false);
+                    renderMemberPortal();
+                } else {
+                    if (!user.emailVerified) return; // la connexion / l'inscription affichent déjà le message
+                    currentUser = { username: user.email, role: 'admin', uid: user.uid };
+                    setHidden('authSection', true);
+                    setHidden('memberSection', true);
+                    setHidden('dashboardSection', false);
+                    document.getElementById('currentUserDisplay').textContent = user.email;
+                    updateDashboard();
+                }
+                setSync('connecting');
+                startListening();
+            } catch (err) {
+                showAlert('authAlert', authErrorMessage(err), 'error');
+            }
+        }
+
+        async function initCloud() {
+            setSync('connecting');
+            document.getElementById('loginUserHint').textContent = '(membre : votre identifiant, ex. MBR-003 · administrateur : votre e-mail)';
+            document.getElementById('regUserLabel').textContent = "Votre adresse e-mail d'administrateur";
+            document.getElementById('registerTabBtn').textContent = 'Administrateur : créer mon compte';
+            setHidden('registerTabBtn', false);
+            try { await window.FB_READY; } catch (err) { console.error(err); }
+            if (!F()) {
+                setSync('error', 'Firebase inaccessible');
+                showAlert('authAlert', 'Impossible de charger Firebase. Vérifiez votre connexion internet puis rechargez la page.', 'error');
+                return;
+            }
+            F().onAuth(onCloudAuth);
+        }
+
         // ---------- Authentification ----------
         function switchAuthTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -795,6 +1085,7 @@
             e.preventDefault();
             const u = document.getElementById('regUsername').value.trim();
             const p = document.getElementById('regPassword').value;
+            if (CLOUD) return cloudRegister(e, u, p);
 
             if (!cryptoAvailable()) {
                 showAlert('authAlert', "Ce navigateur ne permet pas de protéger les mots de passe. Ouvrez l'application en HTTPS (ex. GitHub Pages).", 'error');
@@ -831,13 +1122,14 @@
 
         // L'onglet « Créer le compte administrateur » n'existe que tant qu'aucun compte n'a été créé
         function refreshAuthTabs() {
-            setHidden('registerTabBtn', users.length > 0);
+            setHidden('registerTabBtn', CLOUD ? false : users.length > 0);
         }
 
         async function handleLogin(e) {
             e.preventDefault();
             const u = document.getElementById('loginUsername').value.trim();
             const p = document.getElementById('loginPassword').value;
+            if (CLOUD) return cloudLogin(e, u, p);
 
             if (!cryptoAvailable()) {
                 showAlert('authAlert', "Ce navigateur ne permet pas de vérifier les mots de passe. Ouvrez l'application en HTTPS (ex. GitHub Pages).", 'error');
@@ -892,6 +1184,11 @@
 
         function logout() {
             try { localStorage.removeItem('avec_session'); } catch (e) {}
+            if (CLOUD) {
+                if (stopListening) { stopListening(); stopListening = null; }
+                if (F()) F().logout().catch(() => {});
+                resetCloudState();
+            }
             currentUser = null;
             setHidden('dashboardSection', true);
             setHidden('memberSection', true);
@@ -921,7 +1218,7 @@
                 box.textContent = 'Le mot de passe par défaut doit contenir au moins 6 caractères.';
                 return;
             }
-            if (!cryptoAvailable()) {
+            if (!CLOUD && !cryptoAvailable()) {
                 box.className = 'alert alert-error';
                 box.textContent = "Ce navigateur ne permet pas de protéger les mots de passe. Ouvrez l'application en HTTPS (ex. GitHub Pages).";
                 return;
@@ -930,11 +1227,20 @@
             const member = { id: nextMemberId(), name: name, phone: phone, epargne: epargne, credits: [], history: [] };
             if (epargne > 0) logOp(member, 'epargne', epargne, 'Épargne initiale');
 
-            if (!(await setMemberPassword(member.id, password))) {
+            let access;
+            try {
+                access = await provisionAccess(member.id, password, null);
+            } catch (err) {
+                box.className = 'alert alert-error';
+                box.textContent = "Création de l'accès impossible : " + authErrorMessage(err);
+                return;
+            }
+            if (!access) {
                 box.className = 'alert alert-error';
                 box.textContent = "Cet identifiant est déjà utilisé par un autre compte.";
                 return;
             }
+            if (access.uid) member.authUid = access.uid;
             members.push(member);
             store.set('avec_members', members);
 
@@ -952,11 +1258,18 @@
             if (!requireAdmin()) return;
             const m = members.find(x => x.id === id);
             if (!m) return;
-            if (!cryptoAvailable()) { alert("Ce navigateur ne permet pas de protéger les mots de passe. Ouvrez l'application en HTTPS."); return; }
+            if (!CLOUD && !cryptoAvailable()) { alert("Ce navigateur ne permet pas de protéger les mots de passe. Ouvrez l'application en HTTPS."); return; }
             const pwd = prompt('Mot de passe par défaut pour ' + m.name + ' (' + m.id + ') — 6 caractères minimum.\nLe membre devra le changer à sa prochaine connexion :', '');
             if (pwd === null) return;
             if (pwd.length < 6) { alert('Le mot de passe doit contenir au moins 6 caractères.'); return; }
-            if (!(await setMemberPassword(m.id, pwd))) { alert('Cet identifiant est déjà utilisé par un autre compte.'); return; }
+            let access;
+            try { access = await provisionAccess(m.id, pwd, m.authUid || null); }
+            catch (err) { alert("Impossible de définir l'accès : " + authErrorMessage(err)); return; }
+            if (!access) { alert('Cet identifiant est déjà utilisé par un autre compte.'); return; }
+            if (access.uid) {
+                const cur = members.find(x => x.id === m.id);
+                if (cur) { cur.authUid = access.uid; store.set('avec_members', members); }
+            }
             updateDashboard();
             alert('Accès défini.\nIdentifiant : ' + m.id + '\nMot de passe par défaut : ' + pwd);
         }
@@ -1086,7 +1399,7 @@
                 }
 
                 const idAttr = escapeHtml(m.id);
-                const hasAccess = users.some(x => x.role === 'member' && x.memberId === m.id);
+                const hasAccess = CLOUD ? !!m.authUid : users.some(x => x.role === 'member' && x.memberId === m.id);
                 const accessBadge = hasAccess
                     ? '<span class="badge badge-ok">Accès actif</span>'
                     : '<span class="badge badge-due">Pas d\'accès</span>';
@@ -1165,6 +1478,7 @@
                 return;
             }
             if (!confirm('Supprimer définitivement le membre ' + m.name + ' (' + m.id + '), son accès et ses réclamations ?')) return;
+            const accessUid = m.authUid || null;
             members = members.filter(x => x.id !== id);
             users = users.filter(x => !(x.role === 'member' && x.memberId === id));
             claims = claims.filter(c => c.memberId !== id);
@@ -1173,6 +1487,7 @@
             store.set('avec_users', users);
             store.set('avec_claims', claims);
             store.set('avec_requests', requests);
+            if (CLOUD && F()) F().removeMemberAccess(id, accessUid).catch(() => {});
             document.getElementById('memberInfoHint').classList.add('hidden');
             updateDashboard();
         }
@@ -1370,6 +1685,11 @@
         function renderMemberPortal() {
             const user = currentUser;
             const m = user && members.find(x => x.id === user.memberId);
+            if (!m && CLOUD && !cloudLoaded.members) {
+                document.getElementById('memberWelcome').textContent = 'Chargement de vos données…';
+                setHidden('memberDataWrap', true);
+                return;
+            }
             if (!m) {
                 document.getElementById('memberWelcome').textContent = "Votre fiche membre est introuvable. Contactez l'administrateur.";
                 setHidden('memberDataWrap', true);
@@ -1563,8 +1883,8 @@
                 }
                 html += '</div>';
             });
-            document.getElementById('requestsAdminList').innerHTML = html ||
-                '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune demande pour le moment.</p>';
+            setHtmlKeepFields('requestsAdminList', html ||
+                '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune demande pour le moment.</p>');
             document.getElementById('statPendingReq').textContent = requests.filter(r => r.status === 'en attente').length;
         }
 
@@ -1635,12 +1955,12 @@
             const nw = document.getElementById('pwdNew').value;
             const conf = document.getElementById('pwdConfirm').value;
 
-            if (!cryptoAvailable()) {
+            if (!CLOUD && !cryptoAvailable()) {
                 box.className = 'alert alert-error';
                 box.textContent = "Ce navigateur ne permet pas de protéger les mots de passe. Ouvrez l'application en HTTPS.";
                 return;
             }
-            if (!user.hash || (await hashPassword(cur, user.salt)) !== user.hash) {
+            if (!CLOUD && (!user.hash || (await hashPassword(cur, user.salt)) !== user.hash)) {
                 box.className = 'alert alert-error';
                 box.textContent = 'Le mot de passe actuel est incorrect.';
                 return;
@@ -1660,10 +1980,21 @@
                 box.textContent = "Le nouveau mot de passe doit être différent de l'ancien.";
                 return;
             }
-            user.salt = generateSalt();
-            user.hash = await hashPassword(nw, user.salt);
-            user.mustChange = false;
-            store.set('avec_users', users);
+            if (CLOUD) {
+                try {
+                    await F().changePassword(cur, nw, user.uid);
+                } catch (err) {
+                    box.className = 'alert alert-error';
+                    box.textContent = authErrorMessage(err, 'password');
+                    return;
+                }
+                user.mustChange = false;
+            } else {
+                user.salt = generateSalt();
+                user.hash = await hashPassword(nw, user.salt);
+                user.mustChange = false;
+                store.set('avec_users', users);
+            }
             e.target.reset();
             box.className = 'alert alert-success';
             box.textContent = 'Mot de passe modifié avec succès.';
@@ -1754,8 +2085,8 @@
                 }
                 html += '</div>';
             });
-            document.getElementById('claimsAdminList').innerHTML = html ||
-                '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune réclamation pour le moment.</p>';
+            setHtmlKeepFields('claimsAdminList', html ||
+                '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune réclamation pour le moment.</p>');
             document.getElementById('statOpenClaims').textContent = claims.filter(c => c.status === 'ouverte').length;
         }
 
@@ -1783,6 +2114,8 @@
 
         // ---------- Démarrage ----------
         window.onload = function () {
+            if (CLOUD) { initCloud(); return; }
+            setSync('local');
             refreshAuthTabs();
             const sess = store.get('avec_session', null);
             // La session n'est reprise que si le compte existe encore

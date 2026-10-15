@@ -1,0 +1,164 @@
+// Adaptateur Firebase : connexion (Authentication) + synchronisation (Firestore).
+// Chargé par index.html ; ne fait rien tant que firebase-config.js n'est pas rempli.
+//
+// Organisation des données (voir firestore.rules) :
+//   members/{MBR-001}   fiche du membre (épargne, crédits, historique)  -> écrite par l'administrateur
+//   claims/{id}         réclamations                                    -> créées par le membre, traitées par l'admin
+//   requests/{id}       demandes de crédit / retrait                    -> créées par le membre, traitées par l'admin
+//   profiles/{uid}      lien compte de connexion -> membre (+ mustChange)
+//   loginIndex/{MBR-001} numéro de version du compte (réinitialisation du mot de passe)
+//
+// Le membre se connecte avec son identifiant (ex. MBR-001) : il est transformé en adresse technique
+// mbr-001-g1@membres.avec-sagesse.app (jamais utilisée pour envoyer un e-mail).
+// L'administrateur se connecte avec sa vraie adresse e-mail (vérifiée).
+
+const FIREBASE_VERSION = '10.14.1';
+const CDN = 'https://www.gstatic.com/firebasejs/' + FIREBASE_VERSION + '/';
+const MEMBER_DOMAIN = 'membres.avec-sagesse.app';
+
+window.FB_READY = (async () => {
+    const cfg = window.FIREBASE_CONFIG;
+    if (!cfg || !/^AIza[\w-]{20,}$/.test(String(cfg.apiKey || '')) || !cfg.projectId) return;
+
+    const [appM, authM, fsM] = await Promise.all([
+        import(CDN + 'firebase-app.js'),
+        import(CDN + 'firebase-auth.js'),
+        import(CDN + 'firebase-firestore.js')
+    ]);
+    const { initializeApp } = appM;
+    const { getAuth, initializeAuth, inMemoryPersistence, onAuthStateChanged, signInWithEmailAndPassword,
+        createUserWithEmailAndPassword, signOut, sendEmailVerification, updatePassword,
+        reauthenticateWithCredential, EmailAuthProvider } = authM;
+    const { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where,
+        onSnapshot, writeBatch } = fsM;
+
+    const app = initializeApp(cfg);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Deuxième instance, uniquement pour créer les comptes des membres sans déconnecter l'administrateur
+    let secAuth = null;
+    function secondaryAuth() {
+        if (!secAuth) secAuth = initializeAuth(initializeApp(cfg, 'secondary'), { persistence: inMemoryPersistence });
+        return secAuth;
+    }
+
+    const memberEmail = (id, gen) => String(id).toLowerCase() + '-g' + gen + '@' + MEMBER_DOMAIN;
+    const isMemberEmail = email => String(email || '').toLowerCase().endsWith('@' + MEMBER_DOMAIN);
+    const brief = u => (u ? { uid: u.uid, email: u.email, emailVerified: u.emailVerified } : null);
+    const withId = d => Object.assign({}, d.data(), { id: d.id });
+
+    window.FB = {
+        memberEmail: memberEmail,
+        isMemberEmail: isMemberEmail,
+
+        // ----- Connexion -----
+        onAuth(cb) { return onAuthStateChanged(auth, u => cb(brief(u))); },
+        async login(email, password) {
+            const cred = await signInWithEmailAndPassword(auth, email, password);
+            return brief(cred.user);
+        },
+        async signUpAdmin(email, password) {
+            const cred = await createUserWithEmailAndPassword(auth, email, password);
+            await sendEmailVerification(cred.user);
+            await signOut(auth);
+        },
+        async sendVerification() {
+            if (auth.currentUser) await sendEmailVerification(auth.currentUser);
+        },
+        async logout() { await signOut(auth); },
+
+        // Numéro de version du compte d'un membre (1 par défaut)
+        async getLoginGen(memberId) {
+            try {
+                const s = await getDoc(doc(db, 'loginIndex', memberId));
+                return s.exists() ? (Number(s.data().gen) || 1) : 1;
+            } catch (e) {
+                return 1;
+            }
+        },
+        async getProfile(uid) {
+            const s = await getDoc(doc(db, 'profiles', uid));
+            return s.exists() ? s.data() : null;
+        },
+
+        // Le membre change son mot de passe (l'ancien est revérifié), puis le mot de passe par défaut est marqué comme changé
+        async changePassword(current, next, uid) {
+            const u = auth.currentUser;
+            await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, current));
+            await updatePassword(u, next);
+            for (let i = 0; i < 2; i++) {
+                try { await updateDoc(doc(db, 'profiles', uid), { mustChange: false }); return; } catch (e) { /* nouvel essai */ }
+            }
+            const err = new Error('flag');
+            err.code = 'avec/flag-not-saved';
+            throw err;
+        },
+
+        // ----- Comptes des membres (administrateur) -----
+        // Crée un compte de connexion pour le membre avec le mot de passe par défaut ; remplace l'ancien s'il existe.
+        async provisionMember(memberId, password, oldUid) {
+            let gen = 1;
+            try {
+                const s = await getDoc(doc(db, 'loginIndex', memberId));
+                if (s.exists()) gen = (Number(s.data().gen) || 0) + 1;
+            } catch (e) { /* on repart de 1 */ }
+
+            const sa = secondaryAuth();
+            let cred = null;
+            let used = gen;
+            for (let t = 0; t < 10 && !cred; t++) {
+                try {
+                    cred = await createUserWithEmailAndPassword(sa, memberEmail(memberId, gen + t), password);
+                    used = gen + t;
+                } catch (e) {
+                    if (e.code !== 'auth/email-already-in-use') throw e;
+                }
+            }
+            if (!cred) throw new Error('Impossible de créer le compte de ce membre (identifiant déjà pris).');
+            const uid = cred.user.uid;
+            try { await signOut(sa); } catch (e) { /* sans importance */ }
+
+            await setDoc(doc(db, 'profiles', uid), { memberId: memberId, mustChange: true });
+            await setDoc(doc(db, 'loginIndex', memberId), { gen: used });
+            if (oldUid && oldUid !== uid) {
+                try { await deleteDoc(doc(db, 'profiles', oldUid)); } catch (e) { /* ancien accès déjà supprimé */ }
+            }
+            return { uid: uid, gen: used };
+        },
+        // Supprime l'accès d'un membre supprimé (le compte de connexion devient inutilisable)
+        async removeMemberAccess(memberId, uid) {
+            if (uid) { try { await deleteDoc(doc(db, 'profiles', uid)); } catch (e) { /* ignoré */ } }
+            try { await deleteDoc(doc(db, 'loginIndex', memberId)); } catch (e) { /* ignoré */ }
+        },
+
+        // ----- Données -----
+        async write(name, upserts, deletes) {
+            const ops = upserts.map(u => ({ t: 's', id: u.id, data: u.data })).concat(deletes.map(id => ({ t: 'd', id: id })));
+            for (let i = 0; i < ops.length; i += 400) {
+                const batch = writeBatch(db);
+                ops.slice(i, i + 400).forEach(o => {
+                    const ref = doc(db, name, o.id);
+                    if (o.t === 's') batch.set(ref, o.data); else batch.delete(ref);
+                });
+                await batch.commit();
+            }
+        },
+        // L'administrateur suit toutes les collections en temps réel
+        listenAdmin(h) {
+            const stops = ['members', 'claims', 'requests'].map(n =>
+                onSnapshot(collection(db, n), snap => h[n](snap.docs.map(withId)), err => h.error(err)));
+            return () => stops.forEach(s => s());
+        },
+        // Un membre ne suit que ses propres données
+        listenMember(memberId, h) {
+            const s1 = onSnapshot(doc(db, 'members', memberId),
+                s => h.members(s.exists() ? [withId(s)] : []), err => h.error(err));
+            const s2 = onSnapshot(query(collection(db, 'claims'), where('memberId', '==', memberId)),
+                snap => h.claims(snap.docs.map(withId)), err => h.error(err));
+            const s3 = onSnapshot(query(collection(db, 'requests'), where('memberId', '==', memberId)),
+                snap => h.requests(snap.docs.map(withId)), err => h.error(err));
+            return () => { s1(); s2(); s3(); };
+        }
+    };
+})();
