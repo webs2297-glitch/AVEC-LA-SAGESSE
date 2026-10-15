@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion AVEC - Base Cloud Firebase</title>
+    <title>Gestion AVEC - Caisse &amp; Suivi Complet</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -13,7 +13,9 @@
             --primary: #2563eb;
             --primary-dark: #1d4ed8;
             --success: #10b981;
+            --success-light: #d1fae5;
             --danger: #ef4444;
+            --danger-light: #fee2e2;
             --warning: #f59e0b;
             --text-main: #1f2937;
             --text-muted: #6b7280;
@@ -25,6 +27,27 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
         body { background-color: var(--bg-main); color: var(--text-main); padding: 20px; min-height: 100vh; }
 
+        .hidden { display: none !important; }
+
+        /* AUTHENTIFICATION */
+        .auth-container {
+            max-width: 420px;
+            margin: 60px auto;
+            background: var(--surface);
+            padding: 32px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        .auth-header { text-align: center; margin-bottom: 24px; }
+        .auth-header i { font-size: 2.5rem; color: var(--primary); margin-bottom: 10px; }
+        .auth-header h2 { font-size: 1.4rem; color: var(--text-main); }
+
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: none; font-weight: 600; cursor: pointer; color: var(--text-muted); }
+        .tab-btn.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+
+        /* TABLEAU DE BORD */
         .dashboard-header {
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             color: white;
@@ -35,7 +58,11 @@
             justify-content: space-between;
             align-items: center;
         }
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        .btn-logout { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+        .btn-logout:hover { background: var(--danger); }
 
+        /* CARTES DE STATISTIQUES (CAISSE GLOBALE) */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -43,6 +70,7 @@
             margin-bottom: 24px;
         }
         @media (max-width: 1000px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .stats-grid { grid-template-columns: 1fr; } }
 
         .stat-card {
             background: var(--surface);
@@ -70,171 +98,522 @@
         .bg-purple { background: #8b5cf6; }
 
         .stat-content .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
-        .stat-content .value { font-size: 1.2rem; font-weight: 700; margin-top: 4px; }
+        .stat-content .value { font-size: 1.25rem; font-weight: 700; margin-top: 4px; color: var(--text-main); }
 
-        .grid-container { display: grid; grid-template-columns: 1.2fr 1.8fr; gap: 24px; }
-        @media (max-width: 1000px) { .grid-container { grid-template-columns: 1fr; } }
+        .grid-container { display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px; }
+        @media (max-width: 900px) { .grid-container { grid-template-columns: 1fr; } }
 
-        .card { background: var(--surface); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 24px; }
-        .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-        .card-header i { color: var(--primary); }
+        .card { background: var(--surface); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 24px; }
+        .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        .card-header i { color: var(--primary); font-size: 1.2rem; }
 
-        .form-group { margin-bottom: 12px; }
-        label { display: block; font-size: 0.82rem; font-weight: 500; margin-bottom: 4px; }
-        input, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 6px; }
+        input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); }
 
-        .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 11px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn:hover { background: var(--primary-dark); }
 
-        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 8px; }
-        th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
-        th { background: #f8fafc; color: var(--text-muted); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 10px; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; }
+        th { background: #f8fafc; color: var(--text-muted); font-weight: 600; }
+
+        .alert { padding: 12px; border-radius: 8px; font-size: 0.9rem; margin-top: 12px; }
+        .alert-error { background: #fee2e2; color: #991b1b; }
+        .alert-success { background: #d1fae5; color: #065f46; }
+
+        .member-details-box {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 15px;
+            font-size: 0.88rem;
+        }
     </style>
 </head>
 <body>
 
-    <header class="dashboard-header">
-        <div>
-            <h2><i class="fa-solid fa-fire"></i> Gestion AVEC - Base Cloud Firebase</h2>
-            <p>Synchronisation en temps r�el</p>
+    <!-- SECTION AUTHENTIFICATION -->
+    <div id="authSection" class="auth-container">
+        <div class="auth-header">
+            <i class="fa-solid fa-users-gear"></i>
+            <h2>AVEC - Accès Portail</h2>
         </div>
-    </header>
 
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
-            <div class="stat-content">
-                <div class="label">Total �pargne Globale</div>
-                <div class="value" id="statTotalEpargne">$0</div>
-            </div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchAuthTab('login')">Se Connecter</button>
+            <button class="tab-btn" onclick="switchAuthTab('register')">Créer un Compte</button>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-dollar"></i></div>
-            <div class="stat-content">
-                <div class="label">Total Fonds Social</div>
-                <div class="value" id="statTotalSocial">$0</div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label>Nom d'utilisateur</label>
+                <input type="text" id="loginUsername" required autocomplete="username">
             </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon bg-green"><i class="fa-solid fa-percent"></i></div>
-            <div class="stat-content">
-                <div class="label">Cr�dits en Cours</div>
-                <div class="value" id="statTotalCredits">$0</div>
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password">
             </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon bg-purple"><i class="fa-solid fa-users"></i></div>
-            <div class="stat-content">
-                <div class="label">Membres Actifs</div>
-                <div class="value" id="statTotalMembres">0</div>
+            <button type="submit" class="btn"><i class="fa-solid fa-right-to-bracket"></i> Connexion</button>
+        </form>
+
+        <form id="registerForm" class="hidden" onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label>Choisissez un nom d'utilisateur</label>
+                <input type="text" id="regUsername" required placeholder="Ex: prince" autocomplete="username">
             </div>
-        </div>
+            <div class="form-group">
+                <label>Créez un mot de passe (6 caractères minimum)</label>
+                <input type="password" id="regPassword" required minlength="6" placeholder="••••••••" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn"><i class="fa-solid fa-user-plus"></i> S'inscrire</button>
+        </form>
+
+        <div id="authAlert" class="alert hidden"></div>
     </div>
 
-    <div class="grid-container">
-        <div>
-            <section class="card">
-                <div class="card-header"><i class="fa-solid fa-user-plus"></i><h3>Enregistrer un Membre</h3></div>
-                <form id="addMemberForm">
-                    <div class="form-group"><label>Nom & Post-nom</label><input type="text" id="memName" required placeholder="Ex: Bahati Alain"></div>
-                    <div class="form-group"><label>T�l�phone</label><input type="text" id="memPhone" placeholder="+243 ..."></div>
-                    <div class="form-group"><label>�pargne Initiale ($)</label><input type="number" id="memEpargne" required min="0" placeholder="Ex: 100"></div>
-                    <div class="form-group"><label>Social Initial ($)</label><input type="number" id="memSocial" required min="0" placeholder="Ex: 5"></div>
-                    <button type="submit" class="btn">Enregistrer dans le Cloud</button>
-                </form>
-            </section>
-        </div>
+    <!-- SECTION TABLEAU DE BORD -->
+    <div id="dashboardSection" class="hidden">
+        <header class="dashboard-header">
+            <div>
+                <h2><i class="fa-solid fa-piggy-bank"></i> Gestion AVEC</h2>
+                <p>Suivi de Caisse, Épargne et Crédits Membres</p>
+            </div>
+            <div class="user-info">
+                <span><i class="fa-solid fa-circle-user"></i> <strong id="currentUserDisplay">Utilisateur</strong></span>
+                <button class="btn-logout" onclick="logout()" title="Se déconnecter"><i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </header>
 
-        <div>
-            <section class="card">
-                <div class="card-header"><i class="fa-solid fa-users"></i><h3>R�pertoire des Membres (Cloud Firestore)</h3></div>
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nom & Contact</th>
-                                <th>�pargne ($)</th>
-                                <th>Social ($)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="membersTableBody">
-                            <tr><td colspan="3">Connexion � Firebase en cours...</td></tr>
-                        </tbody>
-                    </table>
+        <!-- TABLEAU DE BORD - STATS CAISSE GLOBALE -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
+                <div class="stat-content">
+                    <div class="label">Total Épargne Caisse</div>
+                    <div class="value" id="statTotalEpargne">$0</div>
                 </div>
-            </section>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                <div class="stat-content">
+                    <div class="label">Total Crédits Octroyés</div>
+                    <div class="value" id="statTotalCredits">$0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-green"><i class="fa-solid fa-percent"></i></div>
+                <div class="stat-content">
+                    <div class="label">Total Intérêts Perçus (10%)</div>
+                    <div class="value" id="statTotalInterets">$0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-purple"><i class="fa-solid fa-vault"></i></div>
+                <div class="stat-content">
+                    <div class="label">Membres Actifs</div>
+                    <div class="value" id="statTotalMembres">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-container">
+            <!-- COLONNE GAUCHE : AJOUT MEMBRE & CRÉDIT -->
+            <div>
+                <section class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <h3>Nouveau Membre</h3>
+                    </div>
+                    <form onsubmit="handleAddMember(event)">
+                        <div class="form-group">
+                            <label>Nom &amp; Post-nom du Membre</label>
+                            <input type="text" id="memName" required maxlength="80" placeholder="Ex: Bahati Alain">
+                        </div>
+                        <div class="form-group">
+                            <label>Téléphone</label>
+                            <input type="text" id="memPhone" maxlength="25" placeholder="+243 ...">
+                        </div>
+                        <div class="form-group">
+                            <label>Épargne Initiale Versée ($)</label>
+                            <input type="number" id="memEpargne" required min="0" step="0.01" placeholder="Ex: 100">
+                        </div>
+                        <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le Membre</button>
+                    </form>
+                </section>
+
+                <section class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-calculator"></i>
+                        <h3>Octroyer un Crédit</h3>
+                    </div>
+                    <form onsubmit="handleCreditCalc(event)">
+                        <div class="form-group">
+                            <label>Sélectionner le Membre</label>
+                            <select id="creditMemberSelect" onchange="displayMemberCreditInfo()" required>
+                                <option value="">-- Choisir un membre --</option>
+                            </select>
+                        </div>
+                        <div id="memberInfoHint" class="member-details-box hidden"></div>
+                        <div class="form-group" style="margin-top: 12px;">
+                            <label>Montant du Crédit Demandé ($)</label>
+                            <input type="number" id="calcCreditAmount" required min="0.01" step="0.01" placeholder="Ex: 150">
+                        </div>
+                        <button type="submit" class="btn"><i class="fa-solid fa-hand-holding-dollar"></i> Valider et Octroyer</button>
+                    </form>
+                    <div id="creditResultBox" class="alert hidden"></div>
+                </section>
+            </div>
+
+            <!-- COLONNE DROITE : RÉPERTOIRE & HISTORIQUE DES CRÉDITS -->
+            <div>
+                <section class="card">
+                    <div class="card-header">
+                        <i class="fa-solid fa-users"></i>
+                        <h3>Répertoire des Membres &amp; Comptes</h3>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nom &amp; Post-nom</th>
+                                    <th>Épargne ($)</th>
+                                    <th>Crédits Reçus</th>
+                                </tr>
+                            </thead>
+                            <tbody id="membersTableBody">
+                                <!-- Données chargées dynamiquement -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
         </div>
     </div>
 
-    <!-- SDK FIREBASE CONFIGUR� AVEC TES CL�S -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    <script>
+        // ---------- Utilitaires ----------
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAFVFR95Q33ouclqeW9-qKGC6qXih690G0",
-            authDomain: "base-de-donnee-avec.firebaseapp.com",
-            projectId: "base-de-donnee-avec",
-            storageBucket: "base-de-donnee-avec.firebasestorage.app",
-            messagingSenderId: "759298772294",
-            appId: "1:759298772294:web:a576fad9b9e9cac02a947",
-            measurementId: "G-0Y3PN4PFV8"
+        // Lecture/écriture sécurisées du localStorage (évite le plantage si les données sont corrompues)
+        const store = {
+            get(key, fallback) {
+                try {
+                    const v = JSON.parse(localStorage.getItem(key));
+                    return v === null || v === undefined ? fallback : v;
+                } catch (e) {
+                    return fallback;
+                }
+            },
+            set(key, value) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const membersRef = collection(db, "members");
+        // Protection contre l'injection de code HTML (XSS)
+        function escapeHtml(value) {
+            return String(value === null || value === undefined ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
-        // Ajout d'un membre
-        document.getElementById('addMemberForm').addEventListener('submit', async (e) => {
+        // Arrondi monétaire à 2 décimales (évite les 0.1 + 0.2 = 0.30000000000000004)
+        function round2(n) {
+            return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+        }
+
+        // Hachage SHA-256 avec sel aléatoire pour les mots de passe
+        function bytesToHex(buffer) {
+            return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        function generateSalt() {
+            const arr = new Uint8Array(16);
+            crypto.getRandomValues(arr);
+            return bytesToHex(arr);
+        }
+        async function hashPassword(password, salt) {
+            const data = new TextEncoder().encode(salt + ':' + password);
+            const digest = await crypto.subtle.digest('SHA-256', data);
+            return bytesToHex(digest);
+        }
+        function cryptoAvailable() {
+            return !!(window.crypto && window.crypto.subtle && window.crypto.getRandomValues);
+        }
+
+        // ---------- Données ----------
+        let users = store.get('avec_users', []);
+        let members = store.get('avec_members', [
+            { id: 'MBR-001', name: 'Kabuo Justin', phone: '0990000000', epargne: 150, credits: [] },
+            { id: 'MBR-002', name: 'Masika Grace', phone: '0810000000', epargne: 300, credits: [] }
+        ]);
+
+        // Génère un identifiant unique même après suppression de membres
+        function nextMemberId() {
+            let max = 0;
+            members.forEach(m => {
+                const n = parseInt(String(m.id).replace(/\D/g, ''), 10);
+                if (!isNaN(n) && n > max) max = n;
+            });
+            return 'MBR-' + String(max + 1).padStart(3, '0');
+        }
+
+        // ---------- Authentification ----------
+        function switchAuthTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('authAlert').classList.add('hidden');
+            if (tab === 'login') {
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('loginForm').classList.remove('hidden');
+                document.getElementById('registerForm').classList.add('hidden');
+            } else {
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('registerForm').classList.remove('hidden');
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const u = document.getElementById('regUsername').value.trim();
+            const p = document.getElementById('regPassword').value;
+
+            if (!cryptoAvailable()) {
+                showAlert('authAlert', "Ce navigateur ne permet pas de protéger les mots de passe. Ouvrez l'application en HTTPS (ex. GitHub Pages).", 'error');
+                return;
+            }
+            if (u.length < 3) {
+                showAlert('authAlert', "Le nom d'utilisateur doit contenir au moins 3 caractères.", 'error');
+                return;
+            }
+            if (p.length < 6) {
+                showAlert('authAlert', 'Le mot de passe doit contenir au moins 6 caractères.', 'error');
+                return;
+            }
+            if (users.some(x => x.username.toLowerCase() === u.toLowerCase())) {
+                showAlert('authAlert', "Ce nom d'utilisateur existe déjà.", 'error');
+                return;
+            }
+
+            const salt = generateSalt();
+            const hash = await hashPassword(p, salt);
+            users.push({ username: u, salt: salt, hash: hash });
+            store.set('avec_users', users);
+            e.target.reset();
+            switchAuthTab('login');
+            showAlert('authAlert', 'Compte créé avec succès ! Connectez-vous.', 'success');
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUsername').value.trim();
+            const p = document.getElementById('loginPassword').value;
+
+            if (!cryptoAvailable()) {
+                showAlert('authAlert', "Ce navigateur ne permet pas de vérifier les mots de passe. Ouvrez l'application en HTTPS (ex. GitHub Pages).", 'error');
+                return;
+            }
+
+            const user = users.find(x => x.username.toLowerCase() === u.toLowerCase());
+            let ok = false;
+
+            if (user) {
+                if (user.hash && user.salt) {
+                    ok = (await hashPassword(p, user.salt)) === user.hash;
+                } else if (typeof user.password === 'string') {
+                    // Ancien compte (mot de passe en clair) : on vérifie puis on le convertit en version protégée
+                    ok = user.password === p;
+                    if (ok) {
+                        user.salt = generateSalt();
+                        user.hash = await hashPassword(p, user.salt);
+                        delete user.password;
+                        store.set('avec_users', users);
+                    }
+                }
+            }
+
+            if (ok) {
+                store.set('avec_session', user.username);
+                e.target.reset();
+                loadDashboard(user.username);
+            } else {
+                showAlert('authAlert', "Nom d'utilisateur ou mot de passe incorrect.", 'error');
+            }
+        }
+
+        function loadDashboard(username) {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('currentUserDisplay').textContent = username;
+            updateDashboard();
+        }
+
+        function logout() {
+            try { localStorage.removeItem('avec_session'); } catch (e) {}
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('authAlert').classList.add('hidden');
+            document.getElementById('creditResultBox').classList.add('hidden');
+        }
+
+        // ---------- Membres ----------
+        function handleAddMember(e) {
             e.preventDefault();
             const name = document.getElementById('memName').value.trim();
             const phone = document.getElementById('memPhone').value.trim();
-            const epargne = parseFloat(document.getElementById('memEpargne').value) || 0;
-            const social = parseFloat(document.getElementById('memSocial').value) || 0;
+            const epargne = round2(parseFloat(document.getElementById('memEpargne').value));
 
-            try {
-                await addDoc(membersRef, {
-                    name,
-                    phone,
-                    epargne,
-                    social,
-                    createdAt: new Date()
-                });
-                document.getElementById('addMemberForm').reset();
-                alert("Membre enregistr� avec succ�s dans Firebase !");
-            } catch (error) {
-                alert("Erreur : " + error.message);
+            if (!name) return;
+            if (!isFinite(epargne) || epargne < 0) {
+                alert("Le montant de l'épargne n'est pas valide.");
+                return;
             }
-        });
 
-        // �coute en temps r�el de la base de donn�es Firestore
-        onSnapshot(membersRef, (snapshot) => {
+            members.push({ id: nextMemberId(), name: name, phone: phone, epargne: epargne, credits: [] });
+            store.set('avec_members', members);
+
+            e.target.reset();
+            updateDashboard();
+        }
+
+        function updateDashboard() {
             const tbody = document.getElementById('membersTableBody');
-            tbody.innerHTML = '';
+            const select = document.getElementById('creditMemberSelect');
+            const selected = select.value;
+            let rows = '';
+            let options = '<option value="">-- Choisir un membre --</option>';
+
             let totalEpargne = 0;
-            let totalSocial = 0;
-            let count = 0;
+            let totalCredits = 0;
+            let totalInterets = 0;
 
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                count++;
-                totalEpargne += data.epargne || 0;
-                totalSocial += data.social || 0;
+            members.forEach(m => {
+                const epargne = Number(m.epargne) || 0;
+                totalEpargne += epargne;
 
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${data.name}</strong><br><small style="color:var(--text-muted);">${data.phone || '-'}</small></td>
-                        <td>$${data.epargne || 0}</td>
-                        <td>$${data.social || 0}</td>
-                    </tr>
-                `;
+                let creditsListHtml = '-';
+                if (m.credits && m.credits.length > 0) {
+                    creditsListHtml = '<ul style="padding-left: 15px; margin: 0;">';
+                    m.credits.forEach(c => {
+                        const amount = Number(c.amount) || 0;
+                        const interet = Number(c.interet) || 0;
+                        totalCredits += amount;
+                        totalInterets += interet;
+                        creditsListHtml += '<li>$' + round2(amount) + ' (Intérêt: $' + round2(interet) + ')</li>';
+                    });
+                    creditsListHtml += '</ul>';
+                }
+
+                rows += '<tr>' +
+                    '<td><strong>' + escapeHtml(m.id) + '</strong></td>' +
+                    '<td>' + escapeHtml(m.name) + '<br><small style="color:var(--text-muted);">' + escapeHtml(m.phone || '') + '</small></td>' +
+                    '<td><strong>$' + round2(epargne) + '</strong></td>' +
+                    '<td>' + creditsListHtml + '</td>' +
+                    '</tr>';
+
+                options += '<option value="' + escapeHtml(m.id) + '">' + escapeHtml(m.name) +
+                    ' (plafond crédit : $' + round2(epargne * 3) + ')</option>';
             });
 
-            document.getElementById('statTotalEpargne').innerText = '$' + totalEpargne;
-            document.getElementById('statTotalSocial').innerText = '$' + totalSocial;
-            document.getElementById('statTotalMembres').innerText = count;
-        });
+            tbody.innerHTML = rows;
+            select.innerHTML = options;
+            select.value = selected;
+            if (select.value !== selected) select.value = '';
+
+            document.getElementById('statTotalEpargne').textContent = '$' + round2(totalEpargne);
+            document.getElementById('statTotalCredits').textContent = '$' + round2(totalCredits);
+            document.getElementById('statTotalInterets').textContent = '$' + round2(totalInterets);
+            document.getElementById('statTotalMembres').textContent = members.length;
+        }
+
+        function displayMemberCreditInfo() {
+            const memId = document.getElementById('creditMemberSelect').value;
+            const hintBox = document.getElementById('memberInfoHint');
+            if (!memId) {
+                hintBox.classList.add('hidden');
+                return;
+            }
+            const member = members.find(m => m.id === memId);
+            if (member) {
+                const maxCredit = round2((Number(member.epargne) || 0) * 3);
+                hintBox.innerHTML = '<strong>Épargne actuelle :</strong> $' + round2(member.epargne) +
+                    '<br><strong>Plafond de crédit autorisé (3x) :</strong> <span style="color:var(--primary); font-weight:bold;">$' + maxCredit + '</span>';
+                hintBox.classList.remove('hidden');
+            }
+        }
+
+        // ---------- Crédits ----------
+        function handleCreditCalc(e) {
+            e.preventDefault();
+            const memId = document.getElementById('creditMemberSelect').value;
+            const amount = round2(parseFloat(document.getElementById('calcCreditAmount').value));
+            const resBox = document.getElementById('creditResultBox');
+
+            const member = members.find(m => m.id === memId);
+            if (!member) return;
+
+            if (!isFinite(amount) || amount <= 0) {
+                resBox.className = 'alert alert-error';
+                resBox.textContent = 'Le montant du crédit doit être supérieur à 0.';
+                return;
+            }
+
+            const maxAllowed = round2((Number(member.epargne) || 0) * 3);
+
+            if (amount > maxAllowed) {
+                resBox.className = 'alert alert-error';
+                resBox.innerHTML = '<strong>Crédit Refusé !</strong> Le montant demandé ($' + amount +
+                    ") dépasse le plafond autorisé de $" + maxAllowed + " (3x l'épargne).";
+            } else {
+                const interet = round2(amount * 0.10);
+                const net = round2(amount - interet);
+
+                // Enregistrer le crédit dans le profil du membre
+                if (!member.credits) member.credits = [];
+                member.credits.push({ amount: amount, interet: interet, net: net, date: new Date().toLocaleDateString('fr-FR') });
+                store.set('avec_members', members);
+
+                resBox.className = 'alert alert-success';
+                resBox.innerHTML =
+                    '<strong>Crédit Accordé et Enregistré !</strong><br>' +
+                    '• Montant brut : $' + amount + '<br>' +
+                    '• Intérêt perçu à la source (10%) : $' + interet + '<br>' +
+                    '• Somme nette versée au membre : <strong>$' + net + '</strong><br>' +
+                    '• À rembourser (3 mois) : $' + amount;
+                updateDashboard();
+                displayMemberCreditInfo();
+                document.getElementById('calcCreditAmount').value = '';
+            }
+            resBox.classList.remove('hidden');
+        }
+
+        function showAlert(id, msg, type) {
+            const el = document.getElementById(id);
+            el.textContent = msg;
+            el.className = 'alert alert-' + type;
+            el.classList.remove('hidden');
+        }
+
+        // ---------- Démarrage ----------
+        window.onload = function () {
+            const sess = store.get('avec_session', null);
+            // La session n'est reprise que si le compte existe encore
+            if (sess && users.some(u => u.username === sess)) {
+                loadDashboard(sess);
+            } else if (users.length === 0) {
+                switchAuthTab('register');
+                showAlert('authAlert', 'Aucun compte pour le moment : créez le premier compte.', 'success');
+            }
+        };
     </script>
 </body>
 </html>
