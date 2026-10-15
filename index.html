@@ -259,6 +259,13 @@
                     <div class="value" id="statOpenClaims">0</div>
                 </div>
             </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-blue"><i class="fa-solid fa-inbox"></i></div>
+                <div class="stat-content">
+                    <div class="label">Demandes en Attente</div>
+                    <div class="value" id="statPendingReq">0</div>
+                </div>
+            </div>
         </div>
 
         <div class="grid-container">
@@ -389,6 +396,14 @@
 
                 <section class="card">
                     <div class="card-header">
+                        <i class="fa-solid fa-inbox"></i>
+                        <h3>Demandes des Membres (crédit / retrait)</h3>
+                    </div>
+                    <div id="requestsAdminList"></div>
+                </section>
+
+                <section class="card">
+                    <div class="card-header">
                         <i class="fa-solid fa-bell"></i>
                         <h3>Réclamations des Membres</h3>
                     </div>
@@ -486,6 +501,44 @@
                 </div>
 
                 <div>
+                    <section class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <h3>Faire une Demande</h3>
+                        </div>
+                        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">
+                            Demandez un crédit ou un retrait de votre épargne. L'administrateur examinera votre demande.
+                        </p>
+                        <div id="reqLimits" class="member-details-box" style="margin-top:0;margin-bottom:14px;"></div>
+                        <form onsubmit="handleRequest(event)">
+                            <div class="form-group">
+                                <label>Type de demande</label>
+                                <select id="reqType" required>
+                                    <option value="credit">Demande de crédit</option>
+                                    <option value="retrait">Retrait d'épargne</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Montant ($)</label>
+                                <input type="number" id="reqAmount" required min="0.01" max="1000000" step="0.01" placeholder="Ex: 100">
+                            </div>
+                            <div class="form-group">
+                                <label>Motif <small style="color:var(--text-muted);font-weight:400;">(facultatif)</small></label>
+                                <textarea id="reqNote" maxlength="300" rows="2" placeholder="Ex: frais de scolarité, achat de marchandises..."></textarea>
+                            </div>
+                            <button type="submit" class="btn"><i class="fa-solid fa-paper-plane"></i> Envoyer la Demande</button>
+                        </form>
+                        <div id="reqResultBox" class="alert hidden"></div>
+                    </section>
+
+                    <section class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-list-check"></i>
+                            <h3>Mes Demandes</h3>
+                        </div>
+                        <div id="mRequestsList"></div>
+                    </section>
+
                     <section class="card">
                         <div class="card-header">
                             <i class="fa-solid fa-circle-exclamation"></i>
@@ -662,6 +715,7 @@
 
         // ---------- Rôles, historique des opérations, réclamations ----------
         let claims = store.get('avec_claims', []);
+        let requests = store.get('avec_requests', []);
         let currentUser = null;
 
         // Un compte sans rôle (créé avant cette version) est un administrateur
@@ -683,6 +737,7 @@
         const OP_LABELS = {
             epargne: "Versement d'épargne",
             credit: 'Crédit accordé',
+            retrait: "Retrait d'épargne",
             remboursement: 'Remboursement',
             correction: "Correction de l'administrateur"
         };
@@ -842,7 +897,7 @@
             setHidden('memberSection', true);
             setHidden('authSection', false);
             ['authAlert', 'creditResultBox', 'depositResultBox', 'repayResultBox', 'memberResultBox',
-             'claimResultBox', 'pwdResultBox', 'memberInfoHint'].forEach(id => setHidden(id, true));
+             'claimResultBox', 'reqResultBox', 'pwdResultBox', 'memberInfoHint'].forEach(id => setHidden(id, true));
             refreshAuthTabs();
         }
 
@@ -976,6 +1031,13 @@
             return Math.max(0, round2((Number(m.epargne) || 0) * 3 - memberOutstanding(m)));
         }
 
+        // Retrait possible : l'épargne restante doit continuer à couvrir les crédits en cours (plafond 3x)
+        function availableWithdrawal(m) {
+            const keep = memberOutstanding(m) / 3;
+            const free = (Number(m.epargne) || 0) - keep;
+            return Math.max(0, Math.floor(free * 100 + 1e-9) / 100);
+        }
+
         function updateDashboard() {
             const tbody = document.getElementById('membersTableBody');
             const today = todayISO();
@@ -1050,6 +1112,7 @@
             document.getElementById('statTotalInterets').textContent = '$' + round2(totalInterets);
             document.getElementById('statTotalMembres').textContent = members.length;
 
+            renderAdminRequests();
             renderAdminClaims();
         }
 
@@ -1100,9 +1163,11 @@
             members = members.filter(x => x.id !== id);
             users = users.filter(x => !(x.role === 'member' && x.memberId === id));
             claims = claims.filter(c => c.memberId !== id);
+            requests = requests.filter(r => r.memberId !== id);
             store.set('avec_members', members);
             store.set('avec_users', users);
             store.set('avec_claims', claims);
+            store.set('avec_requests', requests);
             document.getElementById('memberInfoHint').classList.add('hidden');
             updateDashboard();
         }
@@ -1227,6 +1292,27 @@
         }
 
         // ---------- Crédits ----------
+        // Enregistre un crédit (intérêt de 10 % prélevé à la source, échéance à 3 mois).
+        // Utilisé par l'octroi direct et par l'approbation d'une demande de membre.
+        function grantCredit(member, amount) {
+            const interet = round2(amount * 0.10);
+            const net = round2(amount - interet);
+            const now = new Date();
+            if (!member.credits) member.credits = [];
+            member.credits.push({
+                id: 'CR-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+                amount: amount,
+                interet: interet,
+                net: net,
+                repaid: 0,
+                date: now.toLocaleDateString('fr-FR'),
+                dueDate: addMonthsISO(now, 3)
+            });
+            logOp(member, 'credit', amount, 'Net versé : $' + net + ' (intérêt 10 % : $' + interet + ')');
+            store.set('avec_members', members);
+            return { interet: interet, net: net, dueDate: addMonthsISO(now, 3) };
+        }
+
         function handleCreditCalc(e) {
             e.preventDefault();
             if (!requireAdmin()) return;
@@ -1251,31 +1337,15 @@
                     ") dépasse le plafond encore disponible de $" + maxAllowed +
                     " (3x l'épargne, moins $" + memberOutstanding(member) + " déjà à rembourser).";
             } else {
-                const interet = round2(amount * 0.10);
-                const net = round2(amount - interet);
-                const now = new Date();
-
-                // Enregistrer le crédit dans le profil du membre
-                if (!member.credits) member.credits = [];
-                member.credits.push({
-                    id: 'CR-' + Date.now(),
-                    amount: amount,
-                    interet: interet,
-                    net: net,
-                    repaid: 0,
-                    date: now.toLocaleDateString('fr-FR'),
-                    dueDate: addMonthsISO(now, 3)
-                });
-                logOp(member, 'credit', amount, 'Net versé : $' + net + ' (intérêt 10 % : $' + interet + ')');
-                store.set('avec_members', members);
+                const g = grantCredit(member, amount);
 
                 resBox.className = 'alert alert-success';
                 resBox.innerHTML =
                     '<strong>Crédit Accordé et Enregistré !</strong><br>' +
                     '• Montant brut : $' + amount + '<br>' +
-                    '• Intérêt perçu à la source (10%) : $' + interet + '<br>' +
-                    '• Somme nette versée au membre : <strong>$' + net + '</strong><br>' +
-                    '• À rembourser avant le ' + formatISOtoFR(addMonthsISO(now, 3)) + ' : $' + amount;
+                    '• Intérêt perçu à la source (10%) : $' + g.interet + '<br>' +
+                    '• Somme nette versée au membre : <strong>$' + g.net + '</strong><br>' +
+                    '• À rembourser avant le ' + formatISOtoFR(g.dueDate) + ' : $' + amount;
                 updateDashboard();
                 displayMemberCreditInfo();
                 document.getElementById('calcCreditAmount').value = '';
@@ -1354,7 +1424,176 @@
             document.getElementById('mHistoryBody').innerHTML = hrows ||
                 '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">Aucune opération enregistrée.</td></tr>';
 
+            renderMemberLimits(m);
+            renderMemberRequests(m.id);
             renderMemberClaims(m.id);
+        }
+
+        // ---------- Demandes de crédit / retrait ----------
+        const REQ_LABELS = { credit: 'Demande de crédit', retrait: "Retrait d'épargne" };
+        const REQ_STATUS = {
+            'en attente': '<span class="badge badge-due">En attente</span>',
+            'approuvée': '<span class="badge badge-ok">Approuvée</span>',
+            'refusée': '<span class="badge badge-late">Refusée</span>'
+        };
+
+        function renderMemberLimits(m) {
+            document.getElementById('reqLimits').innerHTML =
+                '<strong>Crédit possible jusqu\'à :</strong> $' + availableCeiling(m) +
+                ' <small style="color:var(--text-muted);">(3x votre épargne, moins ce que vous devez déjà)</small><br>' +
+                '<strong>Retrait possible jusqu\'à :</strong> $' + availableWithdrawal(m) +
+                ' <small style="color:var(--text-muted);">(votre épargne doit continuer à couvrir vos crédits en cours)</small>';
+        }
+
+        function handleRequest(e) {
+            e.preventDefault();
+            const box = document.getElementById('reqResultBox');
+            const user = currentUser;
+            if (!user || isAdmin(user)) return;
+            const m = members.find(x => x.id === user.memberId);
+            if (!m) return;
+            const type = document.getElementById('reqType').value;
+            const amount = round2(parseFloat(document.getElementById('reqAmount').value));
+            const note = document.getElementById('reqNote').value.trim().slice(0, 300);
+
+            if (!REQ_LABELS[type]) return;
+            if (!isFinite(amount) || amount <= 0 || amount > 1000000) {
+                box.className = 'alert alert-error';
+                box.textContent = 'Le montant doit être supérieur à 0.';
+                return;
+            }
+            const pending = requests.filter(r => r.memberId === m.id && r.status === 'en attente').length;
+            if (pending >= 3) {
+                box.className = 'alert alert-error';
+                box.textContent = "Vous avez déjà 3 demandes en attente. Merci d'attendre la réponse de l'administrateur.";
+                return;
+            }
+            const max = type === 'credit' ? availableCeiling(m) : availableWithdrawal(m);
+            if (amount > max) {
+                box.className = 'alert alert-error';
+                box.textContent = (type === 'credit' ? 'Crédit' : 'Retrait') + ' refusé d\'avance : le montant demandé ($' + amount +
+                    ') dépasse le maximum possible actuellement ($' + max + ').';
+                return;
+            }
+            requests.push({
+                id: 'RQ-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+                memberId: m.id,
+                type: type,
+                amount: amount,
+                note: note,
+                date: todayISO(),
+                status: 'en attente',
+                decision: '',
+                decisionDate: ''
+            });
+            store.set('avec_requests', requests);
+            e.target.reset();
+            box.className = 'alert alert-success';
+            box.textContent = "Demande envoyée. L'administrateur l'examinera : vous verrez sa décision ici.";
+            renderMemberRequests(m.id);
+        }
+
+        function renderMemberRequests(memberId) {
+            const mine = requests.filter(r => r.memberId === memberId).slice().reverse();
+            let html = '';
+            mine.forEach(r => {
+                html += '<div class="claim-item ' + (r.status === 'en attente' ? 'open' : (r.status === 'approuvée' ? 'done' : '')) + '">' +
+                    '<div class="claim-meta">' + escapeHtml(formatISOtoFR(r.date)) + ' · ' + escapeHtml(REQ_LABELS[r.type] || '') + ' · ' +
+                    (REQ_STATUS[r.status] || '') + '</div>' +
+                    '<div class="claim-msg"><strong>$' + round2(r.amount) + '</strong>' + (r.note ? ' — ' + escapeHtml(r.note) : '') + '</div>' +
+                    (r.decision ? '<div class="claim-reply"><strong>Réponse de l\'administrateur' +
+                        (r.decisionDate ? ' (' + escapeHtml(formatISOtoFR(r.decisionDate)) + ')' : '') + ' :</strong><br>' + escapeHtml(r.decision) + '</div>' : '') +
+                    '</div>';
+            });
+            document.getElementById('mRequestsList').innerHTML = html ||
+                '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune demande.</p>';
+        }
+
+        // Côté administrateur : demandes en attente d'abord
+        function renderAdminRequests() {
+            const memberName = id => { const m = members.find(x => x.id === id); return m ? m.name : id; };
+            const sorted = requests.slice().sort((a, b) => {
+                if ((a.status === 'en attente') !== (b.status === 'en attente')) return a.status === 'en attente' ? -1 : 1;
+                return String(b.id).localeCompare(String(a.id));
+            });
+            let html = '';
+            sorted.forEach(r => {
+                const rid = escapeHtml(r.id);
+                const m = members.find(x => x.id === r.memberId);
+                html += '<div class="claim-item ' + (r.status === 'en attente' ? 'open' : (r.status === 'approuvée' ? 'done' : '')) + '">' +
+                    '<div class="claim-meta"><strong>' + escapeHtml(memberName(r.memberId)) + '</strong> (' + escapeHtml(r.memberId) + ') · ' +
+                    escapeHtml(formatISOtoFR(r.date)) + ' · ' + escapeHtml(REQ_LABELS[r.type] || '') + ' · ' + (REQ_STATUS[r.status] || '') + '</div>' +
+                    '<div class="claim-msg"><strong>$' + round2(r.amount) + '</strong>' + (r.note ? ' — ' + escapeHtml(r.note) : '') + '</div>';
+                if (r.status === 'en attente') {
+                    const info = m ? (r.type === 'credit'
+                        ? 'Plafond de crédit disponible : $' + availableCeiling(m) + ' · Épargne : $' + round2(m.epargne)
+                        : 'Retrait maximum possible : $' + availableWithdrawal(m) + ' · Épargne : $' + round2(m.epargne)) : '';
+                    html += '<div class="claim-meta" style="margin-top:6px;">' + escapeHtml(info) + '</div>' +
+                        '<div class="claim-actions">' +
+                        '<textarea id="reqNote-' + rid + '" rows="2" maxlength="300" placeholder="Note pour le membre (facultatif)"></textarea>' +
+                        '<button class="btn-small" onclick="approveRequest(\'' + rid + '\')"><i class="fa-solid fa-check"></i> Approuver</button>' +
+                        '<button class="btn-small danger" onclick="refuseRequest(\'' + rid + '\')"><i class="fa-solid fa-xmark"></i> Refuser</button>' +
+                        '</div>';
+                } else if (r.decision) {
+                    html += '<div class="claim-reply"><strong>Votre décision :</strong><br>' + escapeHtml(r.decision) + '</div>';
+                }
+                html += '</div>';
+            });
+            document.getElementById('requestsAdminList').innerHTML = html ||
+                '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune demande pour le moment.</p>';
+            document.getElementById('statPendingReq').textContent = requests.filter(r => r.status === 'en attente').length;
+        }
+
+        // Approuver = exécuter l'opération. Les règles sont revérifiées avec la situation actuelle du membre.
+        function approveRequest(id) {
+            if (!requireAdmin()) return;
+            const r = requests.find(x => x.id === id);
+            if (!r || r.status !== 'en attente') return;
+            const m = members.find(x => x.id === r.memberId);
+            if (!m) { alert('Membre introuvable.'); return; }
+            const field = document.getElementById('reqNote-' + id);
+            const note = field ? field.value.trim().slice(0, 300) : '';
+
+            if (r.type === 'credit') {
+                const max = availableCeiling(m);
+                if (r.amount > max) {
+                    alert('Impossible d\'approuver : le crédit demandé ($' + r.amount + ') dépasse le plafond actuellement disponible de ' + m.name + ' ($' + max + ').');
+                    return;
+                }
+                if (!confirm('Accorder un crédit de $' + r.amount + ' à ' + m.name + ' ?\nIntérêt de 10 % prélevé : $' + round2(r.amount * 0.10) +
+                    ' — somme nette versée : $' + round2(r.amount - r.amount * 0.10))) return;
+                grantCredit(m, r.amount);
+                r.decision = note || 'Crédit accordé. À rembourser dans les 3 mois.';
+            } else {
+                const max = availableWithdrawal(m);
+                if (r.amount > max) {
+                    alert('Impossible d\'approuver : le retrait demandé ($' + r.amount + ') dépasse le maximum possible pour ' + m.name + ' ($' + max + ').');
+                    return;
+                }
+                if (!confirm('Retirer $' + r.amount + ' de l\'épargne de ' + m.name + ' ?')) return;
+                m.epargne = round2((Number(m.epargne) || 0) - r.amount);
+                logOp(m, 'retrait', r.amount, 'Demande approuvée');
+                store.set('avec_members', members);
+                r.decision = note || 'Retrait accepté.';
+            }
+            r.status = 'approuvée';
+            r.decisionDate = todayISO();
+            store.set('avec_requests', requests);
+            updateDashboard();
+            displayMemberCreditInfo();
+        }
+
+        function refuseRequest(id) {
+            if (!requireAdmin()) return;
+            const r = requests.find(x => x.id === id);
+            if (!r || r.status !== 'en attente') return;
+            const field = document.getElementById('reqNote-' + id);
+            const note = field ? field.value.trim().slice(0, 300) : '';
+            r.status = 'refusée';
+            r.decision = note || 'Demande refusée.';
+            r.decisionDate = todayISO();
+            store.set('avec_requests', requests);
+            renderAdminRequests();
         }
 
         // ---------- Mot de passe du membre ----------
