@@ -1031,6 +1031,11 @@
             return Math.max(0, round2((Number(m.epargne) || 0) * 3 - memberOutstanding(m)));
         }
 
+        // Un crédit est « en cours » tant qu'il reste quelque chose à rembourser (y compris en retard)
+        function hasActiveCredit(m) {
+            return memberOutstanding(m) > 0;
+        }
+
         // Retrait possible : l'épargne restante doit continuer à couvrir les crédits en cours (plafond 3x)
         function availableWithdrawal(m) {
             const keep = memberOutstanding(m) / 3;
@@ -1438,9 +1443,12 @@
         };
 
         function renderMemberLimits(m) {
+            const creditLine = hasActiveCredit(m)
+                ? '<strong>Nouveau crédit :</strong> <span style="color:var(--danger);font-weight:600;">impossible tant que votre crédit en cours n\'est pas remboursé (reste $' + memberOutstanding(m) + ').</span>'
+                : '<strong>Crédit possible jusqu\'à :</strong> $' + availableCeiling(m) +
+                  ' <small style="color:var(--text-muted);">(3x votre épargne)</small>';
             document.getElementById('reqLimits').innerHTML =
-                '<strong>Crédit possible jusqu\'à :</strong> $' + availableCeiling(m) +
-                ' <small style="color:var(--text-muted);">(3x votre épargne, moins ce que vous devez déjà)</small><br>' +
+                creditLine + '<br>' +
                 '<strong>Retrait possible jusqu\'à :</strong> $' + availableWithdrawal(m) +
                 ' <small style="color:var(--text-muted);">(votre épargne doit continuer à couvrir vos crédits en cours)</small>';
         }
@@ -1467,6 +1475,20 @@
                 box.className = 'alert alert-error';
                 box.textContent = "Vous avez déjà 3 demandes en attente. Merci d'attendre la réponse de l'administrateur.";
                 return;
+            }
+            if (type === 'credit') {
+                // Règle de base : un seul crédit à la fois
+                if (hasActiveCredit(m)) {
+                    box.className = 'alert alert-error';
+                    box.textContent = 'Vous avez un crédit en cours (reste $' + memberOutstanding(m) +
+                        '). Vous pourrez demander un nouveau crédit une fois celui-ci entièrement remboursé.';
+                    return;
+                }
+                if (requests.some(r => r.memberId === m.id && r.type === 'credit' && r.status === 'en attente')) {
+                    box.className = 'alert alert-error';
+                    box.textContent = 'Vous avez déjà une demande de crédit en attente de réponse.';
+                    return;
+                }
             }
             const max = type === 'credit' ? availableCeiling(m) : availableWithdrawal(m);
             if (amount > max) {
@@ -1526,7 +1548,9 @@
                     '<div class="claim-msg"><strong>$' + round2(r.amount) + '</strong>' + (r.note ? ' — ' + escapeHtml(r.note) : '') + '</div>';
                 if (r.status === 'en attente') {
                     const info = m ? (r.type === 'credit'
-                        ? 'Plafond de crédit disponible : $' + availableCeiling(m) + ' · Épargne : $' + round2(m.epargne)
+                        ? (hasActiveCredit(m)
+                            ? 'Attention : crédit déjà en cours (reste $' + memberOutstanding(m) + ') — approbation impossible · Épargne : $' + round2(m.epargne)
+                            : 'Plafond de crédit disponible : $' + availableCeiling(m) + ' · Épargne : $' + round2(m.epargne))
                         : 'Retrait maximum possible : $' + availableWithdrawal(m) + ' · Épargne : $' + round2(m.epargne)) : '';
                     html += '<div class="claim-meta" style="margin-top:6px;">' + escapeHtml(info) + '</div>' +
                         '<div class="claim-actions">' +
@@ -1555,6 +1579,11 @@
             const note = field ? field.value.trim().slice(0, 300) : '';
 
             if (r.type === 'credit') {
+                if (hasActiveCredit(m)) {
+                    alert('Impossible d\'approuver : ' + m.name + ' a déjà un crédit en cours (reste $' + memberOutstanding(m) +
+                        '). Refusez la demande ou attendez le remboursement complet.');
+                    return;
+                }
                 const max = availableCeiling(m);
                 if (r.amount > max) {
                     alert('Impossible d\'approuver : le crédit demandé ($' + r.amount + ') dépasse le plafond actuellement disponible de ' + m.name + ' ($' + max + ').');
