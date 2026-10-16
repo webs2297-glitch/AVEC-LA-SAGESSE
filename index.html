@@ -118,6 +118,8 @@
         .dtab { flex: 0 0 auto; padding: 10px 14px; border: none; background: none; font-weight: 600; font-size: 0.92rem; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; white-space: nowrap; }
         .dtab.active { color: var(--primary); border-bottom-color: var(--primary); }
         .tab-badge { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 4px; border-radius: 9px; background: var(--danger, #ef4444); color: #fff; font-size: 0.75rem; text-align: center; }
+        .search-row { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+        .search-row input { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
         @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
         .grid-container { display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px; }
@@ -328,6 +330,12 @@
                                         <i class="fa-solid fa-users"></i>
                                         <h3>Répertoire des Membres &amp; Comptes</h3>
                                     </div>
+                    <div class="search-row">
+                        <input type="search" id="memberSearch" placeholder="Rechercher un membre (nom, ID, téléphone)…" oninput="updateDashboard()" onkeydown="if(event.key==='Enter'){event.preventDefault();updateDashboard();}" autocomplete="off">
+                        <button type="button" class="btn-small" onclick="updateDashboard()" title="Rechercher"><i class="fa-solid fa-magnifying-glass"></i> Rechercher</button>
+                        <button type="button" class="btn-small" onclick="clearMemberSearch()" title="Effacer la recherche"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <p id="memberSearchInfo" class="hidden" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:8px;"></p>
                                     <div style="overflow-x: auto;">
                                         <table>
                                             <thead>
@@ -486,7 +494,11 @@
                                     <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">
                                         Qui a fait quoi, et quand (les 300 dernières actions). Visible par vous seul ; personne ne peut modifier ce journal.
                                     </p>
-                                    <div class="form-group">
+                                    <div class="search-row">
+                        <input type="search" id="activitySearch" placeholder="Rechercher dans le journal (membre, action, personne)…" oninput="renderActivity()" autocomplete="off">
+                        <button type="button" class="btn-small" onclick="document.getElementById('activitySearch').value='';renderActivity();" title="Effacer la recherche"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="form-group">
                                         <select id="activityFilter" onchange="renderActivity()"><option value="">Toutes les personnes</option></select>
                                     </div>
                                     <div id="activityList" style="max-height:340px;overflow-y:auto;"></div>
@@ -1520,7 +1532,26 @@
             return Math.max(0, Math.floor(free * 100 + 1e-9) / 100);
         }
 
+        // Recherche : sans tenir compte des majuscules ni des accents
+        function normText(v) {
+            let t = String(v == null ? '' : v).toLowerCase();
+            try { t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { /* ancien navigateur */ }
+            return t.trim();
+        }
+        function memberMatches(m, q) {
+            if (!q) return true;
+            const hay = normText(m.name) + ' ' + normText(m.id) + ' ' + normText(m.phone);
+            return q.split(/\s+/).every(w => hay.indexOf(w) > -1);
+        }
+        function clearMemberSearch() {
+            document.getElementById('memberSearch').value = '';
+            updateDashboard();
+        }
+
         function updateDashboard() {
+            const searchBox = document.getElementById('memberSearch');
+            const query = normText(searchBox ? searchBox.value : '');
+            let shown = 0;
             const tbody = document.getElementById('membersTableBody');
             const today = todayISO();
             let rows = '';
@@ -1562,6 +1593,8 @@
                     creditsListHtml += '</ul>';
                 }
 
+                if (!memberMatches(m, query)) return; // la recherche ne change pas les totaux, seulement les lignes affichées
+                shown++;
                 const idAttr = escapeHtml(m.id);
                 const hasAccess = CLOUD ? !!m.authUid : users.some(x => x.role === 'member' && x.memberId === m.id);
                 const accessBadge = hasAccess
@@ -1581,7 +1614,13 @@
                     '</tr>';
             });
 
-            tbody.innerHTML = rows || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Aucun membre enregistré.</td></tr>';
+            tbody.innerHTML = rows || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">' +
+                (query ? 'Aucun membre ne correspond à cette recherche.' : 'Aucun membre enregistré.') + '</td></tr>';
+            const info = document.getElementById('memberSearchInfo');
+            if (info) {
+                info.textContent = shown + ' membre(s) trouvé(s) sur ' + members.length;
+                setHidden('memberSearchInfo', !query);
+            }
 
             fillMemberSelect('creditMemberSelect', true);
             fillMemberSelect('depositMemberSelect', false);
@@ -1669,7 +1708,10 @@
             sel.innerHTML = '<option value="">Toutes les personnes</option>' +
                 Object.keys(people).sort().map(p => '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>').join('');
             sel.value = people[keep] ? keep : '';
-            const list = activityList.filter(a => !sel.value || a.by === sel.value);
+            const sb = document.getElementById('activitySearch');
+            const q = normText(sb ? sb.value : '');
+            const list = activityList.filter(a => (!sel.value || a.by === sel.value) &&
+                (!q || q.split(/\s+/).every(w => normText((a.text || '') + ' ' + (a.by || '') + ' ' + (a.poste || '') + ' ' + (a.memberId || '')).indexOf(w) > -1)));
             if (!list.length) { box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Aucune activité enregistrée.</p>'; return; }
             box.innerHTML = list.map(a => {
                 let when = a.date || '';
