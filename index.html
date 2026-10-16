@@ -373,6 +373,36 @@
 
             <!-- COLONNE DROITE : RÉPERTOIRE & HISTORIQUE DES CRÉDITS -->
             <div>
+                <section class="card hidden" id="teamSection">
+                    <div class="card-header">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <h3>Équipe &amp; Postes</h3>
+                    </div>
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">
+                        <strong>Poste</strong> : peut tout consulter, saisir et corriger, mais ne peut rien supprimer.
+                        <strong>Accès total</strong> : peut aussi supprimer et gérer l'équipe. La personne crée son compte avec son e-mail (onglet « Équipe / Admin »).
+                    </p>
+                    <form id="staffForm" onsubmit="handleAddStaff(event)">
+                        <div class="form-group">
+                            <label for="staffEmail">E-mail de la personne</label>
+                            <input type="email" id="staffEmail" placeholder="Ex : tresorier@gmail.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="staffPoste">Nom du poste</label>
+                            <input type="text" id="staffPoste" maxlength="40" placeholder="Ex : Trésorier, Secrétaire" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="staffLevel">Niveau d'accès</label>
+                            <select id="staffLevel">
+                                <option value="poste">Poste : tout sauf supprimer</option>
+                                <option value="total">Accès total (peut aussi supprimer)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn"><i class="fa-solid fa-user-plus"></i> Ajouter à l'équipe</button>
+                    </form>
+                    <div id="staffList" style="margin-top:14px;"></div>
+                </section>
+
                 <section class="card">
                     <div class="card-header">
                         <i class="fa-solid fa-users"></i>
@@ -746,6 +776,14 @@
             alert("Action réservée à l'administrateur.");
             return false;
         }
+        // Suppression : réservée à l'administrateur et aux personnes avec « accès total » (un « poste » ne supprime rien)
+        function canDelete(u) { return !!u && (!CLOUD || u.level === 'total'); }
+        function requireTotal() {
+            if (!requireAdmin()) return false;
+            if (canDelete(currentUser)) return true;
+            alert("Votre poste ne permet pas de supprimer des données. Seul l'administrateur peut le faire.");
+            return false;
+        }
         function findUser(username) {
             const k = String(username || '').toLowerCase();
             return users.find(x => String(x.username).toLowerCase() === k);
@@ -801,6 +839,8 @@
         const cloudLoaded = { members: false, claims: false, requests: false };
         const lastSynced = { members: {}, claims: {}, requests: {} };
         let stopListening = null;
+        let stopStaff = null;
+        let staffList = [];
         let pushChain = Promise.resolve();
         let importChecked = false;
 
@@ -860,7 +900,7 @@
                 const c = canon(item);
                 if (known[item.id] !== c) upserts.push({ id: item.id, data: JSON.parse(JSON.stringify(item)), c: c });
             });
-            const deletes = admin ? Object.keys(known).filter(id => !present[id]) : [];
+            const deletes = canDelete(currentUser) ? Object.keys(known).filter(id => !present[id]) : [];
             if (!upserts.length && !deletes.length) return;
             upserts.forEach(u => { known[u.id] = u.c; });
             deletes.forEach(id => { delete known[id]; });
@@ -897,7 +937,7 @@
                 const admin = isAdmin(currentUser);
                 logout();
                 showAlert('authAlert', admin
-                    ? "Accès refusé par la base. Vérifiez que les règles Firestore contiennent bien votre adresse e-mail d'administrateur et que cette adresse est vérifiée (voir GUIDE-FIREBASE.md)."
+                    ? "Accès refusé par la base. Votre adresse e-mail n'est pas (ou plus) autorisée : demandez à l'administrateur de vous ajouter dans « Équipe & Postes ». S'il s'agit de l'administrateur principal, vérifiez les règles Firestore et que l'adresse est vérifiée (voir GUIDE-FIREBASE.md)."
                     : "Accès refusé. Contactez l'administrateur.", 'error');
             }
         }
@@ -968,7 +1008,7 @@
             if (!F()) { showAlert('authAlert', 'Firebase est inaccessible (connexion internet ?).', 'error'); return; }
             const email = u.toLowerCase();
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || F().isMemberEmail(email)) {
-                showAlert('authAlert', "Entrez votre adresse e-mail d'administrateur (celle écrite dans les règles Firestore).", 'error');
+                showAlert('authAlert', "Entrez votre adresse e-mail (celle de l'administrateur, ou celle que l'administrateur a ajoutée à l'équipe).", 'error');
                 return;
             }
             if (p.length < 6) {
@@ -1013,6 +1053,8 @@
         // Appelé par Firebase à chaque connexion / déconnexion (y compris à l'ouverture de la page si la session existe)
         async function onCloudAuth(user) {
             if (stopListening) { stopListening(); stopListening = null; }
+            if (stopStaff) { stopStaff(); stopStaff = null; }
+            staffList = [];
             if (!user) {
                 resetCloudState();
                 currentUser = null;
@@ -1037,11 +1079,28 @@
                     renderMemberPortal();
                 } else {
                     if (!user.emailVerified) return; // la connexion / l'inscription affichent déjà le message
-                    currentUser = { username: user.email, role: 'admin', uid: user.uid };
+                    // Équipe : une fiche « staff » donne un poste (sans suppression) ou l'accès total ;
+                    // sans fiche, c'est l'administrateur principal (adresse écrite dans les règles).
+                    let level = 'total';
+                    let label = '';
+                    try {
+                        const st = await F().getStaff(user.email);
+                        if (st) {
+                            level = st.level === 'total' ? 'total' : 'poste';
+                            label = st.poste || (level === 'total' ? 'Accès total' : 'Poste');
+                        }
+                    } catch (e0) {
+                        level = 'poste'; // par prudence l'écran ne montre pas les suppressions ; la base décide de toute façon
+                    }
+                    currentUser = { username: user.email, role: 'admin', level: level, poste: label, uid: user.uid };
                     setHidden('authSection', true);
                     setHidden('memberSection', true);
                     setHidden('dashboardSection', false);
-                    document.getElementById('currentUserDisplay').textContent = user.email;
+                    document.getElementById('currentUserDisplay').textContent = user.email + (label ? ' · ' + label : '');
+                    setHidden('teamSection', level !== 'total');
+                    if (level === 'total') {
+                        stopStaff = F().listenStaff(list => { staffList = list; renderTeam(); }, err => { /* sans gravité */ });
+                    }
                     updateDashboard();
                 }
                 setSync('connecting');
@@ -1054,8 +1113,8 @@
         async function initCloud() {
             setSync('connecting');
             document.getElementById('loginUserHint').textContent = '(membre : votre identifiant, ex. MBR-003 · administrateur : votre e-mail)';
-            document.getElementById('regUserLabel').textContent = "Votre adresse e-mail d'administrateur";
-            document.getElementById('registerTabBtn').textContent = 'Administrateur : créer mon compte';
+            document.getElementById('regUserLabel').textContent = "Votre adresse e-mail (administrateur, ou personne ajoutée à l'équipe)";
+            document.getElementById('registerTabBtn').textContent = 'Équipe / Admin : créer mon compte';
             setHidden('registerTabBtn', false);
             try { await window.FB_READY; } catch (err) { console.error(err); }
             if (!F()) {
@@ -1186,6 +1245,8 @@
             try { localStorage.removeItem('avec_session'); } catch (e) {}
             if (CLOUD) {
                 if (stopListening) { stopListening(); stopListening = null; }
+                if (stopStaff) { stopStaff(); stopStaff = null; }
+                staffList = [];
                 if (F()) F().logout().catch(() => {});
                 resetCloudState();
             }
@@ -1311,7 +1372,7 @@
         }
 
         function deleteCredit(memberId, creditId) {
-            if (!requireAdmin()) return;
+            if (!requireTotal()) return;
             const m = members.find(x => x.id === memberId);
             const c = m && (m.credits || []).find(x => x.id === creditId);
             if (!c) return;
@@ -1392,7 +1453,7 @@
                             '<br><small style="color:var(--text-muted);">Reste : $' + restant +
                             ' · Échéance : ' + escapeHtml(formatISOtoFR(c.dueDate)) + '</small> ' +
                             '<button class="btn-small" onclick="correctRepaid(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Corriger le montant remboursé"><i class="fa-solid fa-pen-to-square"></i></button>' +
-                            '<button class="btn-small danger" onclick="deleteCredit(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Annuler ce crédit"><i class="fa-solid fa-xmark"></i></button>' +
+                            (canDelete(currentUser) ? '<button class="btn-small danger" onclick="deleteCredit(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Annuler ce crédit"><i class="fa-solid fa-xmark"></i></button>' : '') +
                             '</li>';
                     });
                     creditsListHtml += '</ul>';
@@ -1412,7 +1473,7 @@
                         '<button class="btn-small" onclick="editMember(\'' + idAttr + '\')" title="Modifier le nom / téléphone"><i class="fa-solid fa-pen"></i></button>' +
                         '<button class="btn-small" onclick="correctEpargne(\'' + idAttr + '\')" title="Corriger l\'épargne"><i class="fa-solid fa-coins"></i></button>' +
                         '<button class="btn-small" onclick="resetMemberPassword(\'' + idAttr + '\')" title="Définir / réinitialiser le mot de passe par défaut"><i class="fa-solid fa-key"></i></button>' +
-                        '<button class="btn-small danger" onclick="deleteMember(\'' + idAttr + '\')" title="Supprimer"><i class="fa-solid fa-trash"></i></button>' +
+                        (canDelete(currentUser) ? '<button class="btn-small danger" onclick="deleteMember(\'' + idAttr + '\')" title="Supprimer"><i class="fa-solid fa-trash"></i></button>' : '') +
                     '</td>' +
                     '</tr>';
             });
@@ -1453,6 +1514,70 @@
             }
         }
 
+        // ---------- Équipe & postes (administrateur / accès total) ----------
+        function renderTeam() {
+            const box = document.getElementById('staffList');
+            if (!box) return;
+            if (!staffList.length) { box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Aucune personne dans l\'équipe pour le moment.</p>'; return; }
+            box.innerHTML = staffList.slice().sort((a, b) => String(a.email).localeCompare(String(b.email))).map(st => {
+                const total = st.level === 'total';
+                const em = escapeHtml(st.email);
+                return '<div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                    '<div><strong>' + escapeHtml(st.poste || (total ? 'Accès total' : 'Poste')) + '</strong> ' +
+                    '<span class="badge ' + (total ? 'badge-due' : 'badge-ok') + '">' + (total ? 'Accès total' : 'Sans suppression') + '</span><br>' +
+                    '<small style="color:var(--text-muted);">' + em + '</small></div>' +
+                    '<div style="white-space:nowrap;">' +
+                    '<button class="btn-small" onclick="toggleStaffLevel(\'' + em + '\')" title="' + (total ? 'Retirer le droit de supprimer' : 'Débloquer l\'accès total') + '"><i class="fa-solid ' + (total ? 'fa-lock' : 'fa-lock-open') + '"></i></button>' +
+                    '<button class="btn-small danger" onclick="removeStaff(\'' + em + '\')" title="Retirer de l\'équipe"><i class="fa-solid fa-user-minus"></i></button>' +
+                    '</div></div>';
+            }).join('');
+        }
+
+        async function handleAddStaff(e) {
+            e.preventDefault();
+            if (!CLOUD || !F() || !currentUser || currentUser.level !== 'total') { alert("Réservé à l'administrateur."); return; }
+            const email = document.getElementById('staffEmail').value.trim().toLowerCase();
+            const poste = document.getElementById('staffPoste').value.trim().slice(0, 40);
+            const level = document.getElementById('staffLevel').value === 'total' ? 'total' : 'poste';
+            if (!/^[^\s@'"<>\\\/]+@[^\s@'"<>\\\/]+\.[^\s@'"<>\\\/]+$/.test(email) || F().isMemberEmail(email)) { alert('Adresse e-mail invalide.'); return; }
+            if (!poste) { alert('Indiquez le nom du poste.'); return; }
+            if (email === String(currentUser.username).toLowerCase()) { alert("C'est déjà votre adresse."); return; }
+            if (level === 'total' && !confirm('Donner l\'ACCÈS TOTAL à ' + email + ' ? Cette personne pourra aussi tout supprimer et gérer l\'équipe.')) return;
+            try {
+                await F().saveStaff(email, { level: level, poste: poste, addedBy: String(currentUser.username), addedAt: todayISO() });
+                document.getElementById('staffEmail').value = '';
+                document.getElementById('staffPoste').value = '';
+            } catch (err) {
+                alert("Enregistrement impossible : " + errText(err));
+            }
+        }
+
+        async function toggleStaffLevel(email) {
+            if (!currentUser || currentUser.level !== 'total') return;
+            const st = staffList.find(x => x.email === email);
+            if (!st) return;
+            const toTotal = st.level !== 'total';
+            const msg = toTotal
+                ? 'Débloquer l\'ACCÈS TOTAL pour ' + email + ' (peut aussi supprimer et gérer l\'équipe) ?'
+                : 'Retirer le droit de supprimer à ' + email + ' (il garde son poste) ?';
+            if (!confirm(msg)) return;
+            try {
+                await F().saveStaff(email, { level: toTotal ? 'total' : 'poste', poste: st.poste || '', addedBy: st.addedBy || '', addedAt: st.addedAt || '' });
+            } catch (err) {
+                alert("Modification impossible : " + errText(err));
+            }
+        }
+
+        async function removeStaff(email) {
+            if (!currentUser || currentUser.level !== 'total') return;
+            if (!confirm('Retirer ' + email + ' de l\'équipe ? Son accès est coupé immédiatement.')) return;
+            try {
+                await F().removeStaff(email);
+            } catch (err) {
+                alert("Suppression impossible : " + errText(err));
+            }
+        }
+
         // ---------- Modifier / supprimer un membre ----------
         function editMember(id) {
             if (!requireAdmin()) return;
@@ -1470,7 +1595,7 @@
         }
 
         function deleteMember(id) {
-            if (!requireAdmin()) return;
+            if (!requireTotal()) return;
             const m = members.find(x => x.id === id);
             if (!m) return;
             if (memberOutstanding(m) > 0) {

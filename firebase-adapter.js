@@ -7,6 +7,7 @@
 //   requests/{id}       demandes de crédit / retrait                    -> créées par le membre, traitées par l'admin
 //   profiles/{uid}      lien compte de connexion -> membre (+ mustChange)
 //   loginIndex/{MBR-001} numéro de version du compte (réinitialisation du mot de passe)
+//   staff/{e-mail}      équipe : level 'poste' (tout sauf supprimer) ou 'total' (tous les droits)
 //
 // Le membre se connecte avec son identifiant (ex. MBR-001) : il est transformé en adresse technique
 // mbr-001-g1@membres.avec-sagesse.app (jamais utilisée pour envoyer un e-mail).
@@ -130,6 +131,23 @@ window.FB_READY = (async () => {
         async removeMemberAccess(memberId, uid) {
             if (uid) { try { await deleteDoc(doc(db, 'profiles', uid)); } catch (e) { /* ignoré */ } }
             try { await deleteDoc(doc(db, 'loginIndex', memberId)); } catch (e) { /* ignoré */ }
+        },
+
+        // ----- Équipe (postes et accès total) -----
+        // Fiche de l'équipe pour cette adresse : { level: 'poste' | 'total', poste, ... } ou null
+        async getStaff(email) {
+            const s = await getDoc(doc(db, 'staff', String(email).toLowerCase()));
+            return s.exists() ? s.data() : null;
+        },
+        async saveStaff(email, data) {
+            await setDoc(doc(db, 'staff', String(email).toLowerCase()), data);
+        },
+        async removeStaff(email) {
+            await deleteDoc(doc(db, 'staff', String(email).toLowerCase()));
+        },
+        listenStaff(cb, onError) {
+            return onSnapshot(collection(db, 'staff'),
+                snap => cb(snap.docs.map(d => Object.assign({}, d.data(), { email: d.id }))), err => onError(err));
         },
 
         // ----- Données -----

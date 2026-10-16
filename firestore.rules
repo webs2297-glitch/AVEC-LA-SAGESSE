@@ -4,7 +4,9 @@ rules_version = '2';
 // À coller dans Firebase Console > Firestore Database > onglet « Règles » > Publier.
 //
 // Principe :
-//  - l'administrateur (un e-mail VÉRIFIÉ, à écrire ci-dessous) peut tout lire et tout modifier ;
+//  - l'administrateur principal (un e-mail VÉRIFIÉ, à écrire ci-dessous) peut tout faire, y compris supprimer ;
+//  - les personnes de l'équipe (collection staff, gérée dans l'application) ont soit l'accès total,
+//    soit un « poste » : tout lire, saisir et corriger, mais PAS supprimer ;
 //  - un membre connecté ne peut lire QUE sa propre fiche, ses réclamations et ses demandes ;
 //  - un membre ne peut rien modifier : il peut seulement créer une réclamation ou une demande
 //    à son nom, et marquer son mot de passe par défaut comme changé.
@@ -15,13 +17,35 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // >>> REMPLACEZ par les adresses e-mail des administrateurs, en minuscules <<<
-    // Une seule adresse : ['moi@gmail.com']
-    // Plusieurs : ['a@gmail.com', 'b@gmail.com', 'c@gmail.com']  (entre apostrophes, séparées par une virgule)
+    // >>> REMPLACEZ par l'adresse e-mail de l'administrateur principal, en minuscules <<<
+    // Les autres personnes (postes, autres administrateurs) s'ajoutent ensuite DANS L'APPLICATION
+    // (section « Équipe & Postes »), sans toucher à ces règles.
+    function verified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+    function rootAdmin() {
+      return verified() && request.auth.token.email == 'votre-email@exemple.com';
+    }
+    function staffPath() {
+      return /databases/$(database)/documents/staff/$(request.auth.token.email);
+    }
+    // Niveau d'un membre de l'équipe : 'total' (tous les droits) ou 'poste' (tout sauf supprimer)
+    function staffLevel() {
+      return get(staffPath()).data.level;
+    }
+    // Droits complets, y compris supprimer
     function isAdmin() {
-      return signedIn()
-        && request.auth.token.email_verified == true
-        && request.auth.token.email in ['votre-email@exemple.com'];
+      return rootAdmin() || (verified() && exists(staffPath()) && staffLevel() == 'total');
+    }
+    // Peut saisir et modifier (mais pas supprimer, sauf si isAdmin)
+    function isStaff() {
+      return isAdmin() || (verified() && exists(staffPath()) && staffLevel() == 'poste');
+    }
+    // Un poste ne peut pas faire disparaître des crédits ni des lignes d'historique d'une fiche
+    function nothingRemoved() {
+      return request.resource.data.get('credits', []).size() >= resource.data.get('credits', []).size()
+        && (request.resource.data.get('history', []).size() >= resource.data.get('history', []).size()
+            || resource.data.get('history', []).size() >= 200);
     }
 
     function profilePath() {
@@ -39,14 +63,21 @@ service cloud.firestore {
     match /loginIndex/{memberId} {
       allow get: if true;
       allow list: if false;
+      allow create, update, delete: if isStaff();
+    }
+
+    // Équipe : qui a un poste ou l'accès total. Géré par les administrateurs.
+    match /staff/{email} {
+      allow get: if isAdmin() || (verified() && request.auth.token.email == email);
+      allow list: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
 
     // Lien entre un compte de connexion et un membre.
     match /profiles/{uid} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (
+      allow read: if isStaff() || (signedIn() && request.auth.uid == uid);
+      allow create, delete: if isStaff();
+      allow update: if isStaff() || (
         signedIn() && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mustChange'])
         && request.resource.data.mustChange == false
@@ -55,14 +86,16 @@ service cloud.firestore {
 
     // Fiche du membre : épargne, crédits, historique.
     match /members/{memberId} {
-      allow read: if isAdmin() || (hasProfile() && myMemberId() == memberId);
-      allow create, update, delete: if isAdmin();
+      allow read: if isStaff() || (hasProfile() && myMemberId() == memberId);
+      allow create: if isStaff();
+      allow update: if isAdmin() || (isStaff() && nothingRemoved());
+      allow delete: if isAdmin();
     }
 
     // Réclamations.
     match /claims/{claimId} {
-      allow read: if isAdmin() || (hasProfile() && resource.data.memberId == myMemberId());
-      allow create: if isAdmin() || (
+      allow read: if isStaff() || (hasProfile() && resource.data.memberId == myMemberId());
+      allow create: if isStaff() || (
         hasProfile()
         && request.resource.data.keys().hasOnly(['id', 'memberId', 'date', 'subject', 'message', 'status', 'response', 'responseDate'])
         && request.resource.data.id == claimId
@@ -74,13 +107,14 @@ service cloud.firestore {
         && request.resource.data.status == 'ouverte'
         && request.resource.data.response == ''
       );
-      allow update, delete: if isAdmin();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
     }
 
     // Demandes de crédit / retrait.
     match /requests/{requestId} {
-      allow read: if isAdmin() || (hasProfile() && resource.data.memberId == myMemberId());
-      allow create: if isAdmin() || (
+      allow read: if isStaff() || (hasProfile() && resource.data.memberId == myMemberId());
+      allow create: if isStaff() || (
         hasProfile()
         && request.resource.data.keys().hasOnly(['id', 'memberId', 'type', 'amount', 'note', 'date', 'status', 'decision', 'decisionDate'])
         && request.resource.data.id == requestId
@@ -94,7 +128,8 @@ service cloud.firestore {
         && request.resource.data.status == 'en attente'
         && request.resource.data.decision == ''
       );
-      allow update, delete: if isAdmin();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
     }
   }
 }
