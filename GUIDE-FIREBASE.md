@@ -41,7 +41,14 @@ Si des données existent déjà dans ce navigateur, l'application propose de les
 - Pour un membre déjà enregistré (ou qui a oublié son mot de passe), utilisez le bouton « clé » du tableau pour définir un nouveau mot de passe par défaut.
 - Au premier accès, le membre doit choisir son propre mot de passe.
 
+## 7. Équipe : postes et accès total
+Dans l'application, la section **Équipe & Postes** (visible par l'administrateur) permet d'ajouter des personnes par leur e-mail :
+- **Poste** (Trésorier, Secrétaire…) : peut tout consulter, saisir et corriger, mais **ne peut rien supprimer**.
+- **Accès total** : peut aussi supprimer et gérer l'équipe. Le bouton cadenas passe un poste en accès total (ou l'inverse).
+La personne crée son compte avec cet e-mail (onglet « Équipe / Admin »), clique sur le lien de vérification, puis se connecte. Le bouton « retirer » coupe son accès immédiatement.
+Pour que cela fonctionne, **republiez les règles** du fichier `firestore.rules` (étape 3) : seul l'e-mail de l'administrateur principal y est écrit.
+
 ## Bon à savoir
 - L'offre gratuite (Spark) suffit largement pour une AVEC : environ 50 000 lectures et 20 000 écritures par jour.
-- L'adresse e-mail d'administrateur est contrôlée côté serveur : personne d'autre ne peut devenir administrateur, même en créant un compte.
+- Les droits sont contrôlés côté serveur : personne ne peut devenir administrateur ou poste sans y avoir été ajouté, même en créant un compte.
 - Le mot de passe d'un membre ne peut pas être consulté, seulement redéfini.
