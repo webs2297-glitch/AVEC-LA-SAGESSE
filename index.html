@@ -59,6 +59,7 @@
             align-items: center;
         }
         .user-info { display: flex; align-items: center; gap: 12px; }
+        .lock-select { background: #334155; color: #fff; border: none; padding: 7px 8px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; max-width: 170px; }
         .btn-logout { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
         .btn-logout:hover { background: var(--danger); }
 
@@ -222,6 +223,12 @@
             <div class="header-actions">
                 <button class="btn-export" onclick="exportCSV()" title="Télécharger le rapport (Excel/CSV)"><i class="fa-solid fa-file-arrow-down"></i> Exporter</button>
                 <div class="user-info">
+                    <select id="lockSelAdmin" class="lock-select" onchange="setAutoLock(this.value)" title="Verrouillage automatique : vous êtes déconnecté après ce temps sans utiliser l'application">
+                        <option value="0">Verrouillage : désactivé</option>
+                        <option value="5">Verrouillage : 5 min</option>
+                        <option value="30">Verrouillage : 30 min</option>
+                        <option value="60">Verrouillage : 1 h</option>
+                    </select>
                     <span><i class="fa-solid fa-circle-user"></i> <strong id="currentUserDisplay">Utilisateur</strong></span>
                     <button class="btn-logout" onclick="logout()" title="Se déconnecter"><i class="fa-solid fa-power-off"></i></button>
                 </div>
@@ -565,7 +572,13 @@
                 <p id="memberWelcome">Consultez votre épargne et vos crédits</p>
             </div>
             <div class="user-info">
-                <span><i class="fa-solid fa-circle-user"></i> <strong id="memberUserDisplay">Membre</strong></span>
+                <select id="lockSelMember" class="lock-select" onchange="setAutoLock(this.value)" title="Verrouillage automatique : vous êtes déconnecté après ce temps sans utiliser l'application">
+                        <option value="0">Verrouillage : désactivé</option>
+                        <option value="5">Verrouillage : 5 min</option>
+                        <option value="30">Verrouillage : 30 min</option>
+                        <option value="60">Verrouillage : 1 h</option>
+                    </select>
+                    <span><i class="fa-solid fa-circle-user"></i> <strong id="memberUserDisplay">Membre</strong></span>
                 <button class="btn-logout" onclick="logout()" title="Se déconnecter"><i class="fa-solid fa-power-off"></i></button>
             </div>
         </header>
@@ -1183,6 +1196,14 @@
 
         // Appelé par Firebase à chaque connexion / déconnexion (y compris à l'ouverture de la page si la session existe)
         async function onCloudAuth(user) {
+            const first = firstAuthEvent;
+            firstAuthEvent = false;
+            if (user && first && expiredOnLoad) {
+                // Page rouverte après une longue inactivité : la session enregistrée n'est pas reprise
+                await F().logout();
+                showAlert('authAlert', 'Session verrouillée après ' + lockLabel(autoLockMin) + " sans utilisation. Reconnectez-vous pour continuer.", 'error');
+                return;
+            }
             if (stopListening) { stopListening(); stopListening = null; }
             if (stopStaff) { stopStaff(); stopStaff = null; }
             if (stopActivity) { stopActivity(); stopActivity = null; }
@@ -1204,6 +1225,7 @@
                         showAlert('authAlert', "Ce compte n'est plus actif. Contactez l'administrateur.", 'error');
                         return;
                     }
+                    touchActivity();
                     currentUser = { username: profile.memberId, role: 'member', memberId: profile.memberId, mustChange: !!profile.mustChange, uid: user.uid };
                     setHidden('authSection', true);
                     setHidden('dashboardSection', true);
@@ -1224,6 +1246,7 @@
                     } catch (e0) {
                         level = 'poste'; // par prudence l'écran ne montre pas les suppressions ; la base décide de toute façon
                     }
+                    touchActivity();
                     currentUser = { username: user.email, role: 'admin', level: level, poste: label, uid: user.uid };
                     setHidden('authSection', true);
                     setHidden('memberSection', true);
@@ -1389,6 +1412,7 @@
             const user = findUser(username);
             if (!user) { logout(); return; }
             currentUser = user;
+            touchActivity();
             setHidden('authSection', true);
 
             if (isAdmin(user)) {
@@ -2581,14 +2605,77 @@
             renderAdminClaims();
         }
 
+        // ---------- Verrouillage automatique après inactivité ----------
+        // Après le délai choisi sans utiliser l'application, la session est fermée : il faut se reconnecter.
+        const AUTOLOCK_KEY = 'avec_autolock';
+        let autoLockMin = 30; // minutes ; 0 = désactivé
+        let lastActivity = Date.now();
+        let lastSaved = 0;
+        let expiredOnLoad = false;   // la page a été rouverte après un temps d'inactivité plus long que le délai
+        let firstAuthEvent = true;
+        function lockLabel(min) { return min >= 60 ? (min / 60) + ' h' : min + ' min'; }
+        function syncLockSelects() {
+            ['lockSelAdmin', 'lockSelMember'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = String(autoLockMin);
+            });
+        }
+        function loadAutoLock() {
+            try {
+                const v = localStorage.getItem(AUTOLOCK_KEY);
+                if (v !== null && ['0', '5', '30', '60'].indexOf(v) > -1) autoLockMin = parseInt(v, 10);
+                const last = parseInt(localStorage.getItem('avec_lastactive') || '0', 10);
+                expiredOnLoad = autoLockMin > 0 && last > 0 && (Date.now() - last) >= autoLockMin * 60000;
+            } catch (e) { /* stockage indisponible : valeur par défaut */ }
+            syncLockSelects();
+        }
+        function setAutoLock(v) {
+            const n = parseInt(v, 10);
+            if ([0, 5, 30, 60].indexOf(n) === -1) return;
+            autoLockMin = n;
+            try { localStorage.setItem(AUTOLOCK_KEY, String(n)); } catch (e) { /* ignoré */ }
+            syncLockSelects();
+            touchActivity();
+        }
+        function touchActivity() {
+            lastActivity = Date.now();
+            if (lastActivity - lastSaved > 10000) { // mémorisé pour détecter une longue absence même si la page a été fermée
+                lastSaved = lastActivity;
+                try { localStorage.setItem('avec_lastactive', String(lastActivity)); } catch (e) { /* ignoré */ }
+            }
+        }
+        function lockSession() {
+            const min = autoLockMin;
+            logout();
+            showAlert('authAlert', 'Session verrouillée après ' + lockLabel(min) + " sans utilisation. Reconnectez-vous pour continuer.", 'error');
+        }
+        // Renvoie true si la session vient d'être verrouillée
+        function checkAutoLock(now) {
+            if (!currentUser || !autoLockMin) return false;
+            if ((now || Date.now()) - lastActivity >= autoLockMin * 60000) { lockSession(); return true; }
+            return false;
+        }
+        function startAutoLockWatch() {
+            if (typeof document.addEventListener !== 'function') return;
+            ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(ev =>
+                document.addEventListener(ev, touchActivity, { passive: true }));
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) checkAutoLock(); });
+            if (typeof setInterval === 'function') setInterval(() => checkAutoLock(), 15000);
+        }
+
         // ---------- Démarrage ----------
         window.onload = function () {
+            loadAutoLock();
+            startAutoLockWatch();
             if (CLOUD) { initCloud(); return; }
             setSync('local');
             refreshAuthTabs();
             const sess = store.get('avec_session', null);
             // La session n'est reprise que si le compte existe encore
-            if (sess && users.some(u => u.username === sess)) {
+            if (sess && expiredOnLoad) {
+                try { localStorage.removeItem('avec_session'); } catch (e) { /* ignoré */ }
+                showAlert('authAlert', 'Session verrouillée après ' + lockLabel(autoLockMin) + " sans utilisation. Reconnectez-vous pour continuer.", 'error');
+            } else if (sess && users.some(u => u.username === sess)) {
                 loadDashboard(sess);
             } else if (users.length === 0) {
                 setHidden('registerTabBtn', false);
