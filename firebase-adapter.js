@@ -30,7 +30,7 @@ window.FB_READY = (async () => {
     const { initializeApp } = appM;
     const { getAuth, initializeAuth, inMemoryPersistence, onAuthStateChanged, signInWithEmailAndPassword,
         createUserWithEmailAndPassword, signOut, sendEmailVerification, updatePassword,
-        reauthenticateWithCredential, EmailAuthProvider } = authM;
+        reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } = authM;
     const { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where,
         onSnapshot, writeBatch, orderBy, limit } = fsM;
 
@@ -69,6 +69,7 @@ window.FB_READY = (async () => {
             if (auth.currentUser) await sendEmailVerification(auth.currentUser);
         },
         async logout() { await signOut(auth); },
+        async resetPassword(email) { auth.languageCode = 'fr'; await sendPasswordResetEmail(auth, email); },
 
         // Numéro de version du compte d'un membre (1 par défaut)
         async getLoginGen(memberId) {

@@ -184,6 +184,9 @@
                 <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password">
             </div>
             <button type="submit" class="btn"><i class="fa-solid fa-right-to-bracket"></i> Connexion</button>
+            <p id="forgotWrap" class="hidden" style="text-align:center;margin-top:12px;font-size:0.9rem;">
+                <a href="#" onclick="forgotPassword(); return false;" style="color:var(--primary);">Mot de passe oublié ? (administrateur / équipe)</a>
+            </p>
         </form>
 
         <form id="registerForm" class="hidden" onsubmit="handleRegister(event)">
@@ -1146,8 +1149,33 @@
             }
         }
 
+        // Mot de passe oublié (administrateur / équipe) : Firebase envoie un e-mail avec un lien pour en choisir un nouveau
+        async function forgotPassword() {
+            if (!F()) { showAlert('authAlert', 'Firebase est inaccessible (connexion internet ?).', 'error'); return; }
+            const u = document.getElementById('loginUsername').value.trim().toLowerCase();
+            if (/^MBR-\d+$/i.test(u)) {
+                showAlert('authAlert', "Un membre qui a oublié son mot de passe doit demander à l'administrateur de lui en définir un nouveau (bouton « clé »).", 'error');
+                return;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u) || F().isMemberEmail(u)) {
+                showAlert('authAlert', "Écrivez votre adresse e-mail dans le champ « Nom d'utilisateur », puis cliquez à nouveau sur « Mot de passe oublié ».", 'error');
+                return;
+            }
+            try {
+                await F().resetPassword(u);
+                showAlert('authAlert', "Si cette adresse a un compte, un e-mail vient d'être envoyé avec un lien pour choisir un nouveau mot de passe. Regardez aussi les courriers indésirables.", 'success');
+            } catch (err) {
+                if (err && err.code === 'auth/user-not-found') {
+                    showAlert('authAlert', "Si cette adresse a un compte, un e-mail vient d'être envoyé avec un lien pour choisir un nouveau mot de passe. Regardez aussi les courriers indésirables.", 'success');
+                } else {
+                    showAlert('authAlert', authErrorMessage(err), 'error');
+                }
+            }
+        }
+
         async function initCloud() {
             setSync('connecting');
+            setHidden('forgotWrap', false);
             document.getElementById('loginUserHint').textContent = '(membre : votre identifiant, ex. MBR-003 · administrateur : votre e-mail)';
             document.getElementById('regUserLabel').textContent = "Votre adresse e-mail (administrateur, ou personne ajoutée à l'équipe)";
             document.getElementById('registerTabBtn').textContent = 'Équipe / Admin : créer mon compte';

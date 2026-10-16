@@ -49,6 +49,11 @@ La personne crée son compte avec cet e-mail (onglet « Équipe / Admin »), cli
 Chaque action de l'équipe (versement, crédit, correction, décision sur une demande, ajout ou retrait d'une personne…) laisse une ligne dans le **Journal d'activité**, avec la date, le nom du poste et l'e-mail. Seuls vous et les personnes en accès total le voient ; personne ne peut le modifier.
 Pour que cela fonctionne, **republiez les règles** du fichier `firestore.rules` (étape 3) : seul l'e-mail de l'administrateur principal y est écrit.
 
+## 8. Mot de passe oublié
+- **Administrateur / équipe** : sur l'écran de connexion, écrivez votre e-mail dans le champ « Nom d'utilisateur », puis cliquez sur **Mot de passe oublié ?**. Firebase envoie un e-mail avec un lien pour choisir un nouveau mot de passe (regardez les courriers indésirables).
+- **Membre** : l'administrateur définit un nouveau mot de passe par défaut avec le bouton « clé » du tableau.
+- **Secours** : Firebase Console > Authentication > Utilisateurs > les trois points à droite de l'adresse > **Réinitialiser le mot de passe**.
+
 ## Bon à savoir
 - L'offre gratuite (Spark) suffit largement pour une AVEC : environ 50 000 lectures et 20 000 écritures par jour.
 - Les droits sont contrôlés côté serveur : personne ne peut devenir administrateur ou poste sans y avoir été ajouté, même en créant un compte.
