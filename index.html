@@ -114,6 +114,12 @@
         .stat-content .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
         .stat-content .value { font-size: 1.25rem; font-weight: 700; margin-top: 4px; color: var(--text-main); }
 
+        .dtabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+        .dtab { flex: 0 0 auto; padding: 10px 14px; border: none; background: none; font-weight: 600; font-size: 0.92rem; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+        .dtab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-badge { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 4px; border-radius: 9px; background: var(--danger, #ef4444); color: #fff; font-size: 0.75rem; text-align: center; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
         .grid-container { display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px; }
         @media (max-width: 900px) { .grid-container { grid-template-columns: 1fr; } }
 
@@ -220,6 +226,18 @@
             </div>
         </header>
 
+        <!-- ONGLETS PAR CATÉGORIE -->
+        <nav class="dtabs" id="dashTabs">
+            <button class="dtab active" data-tab="dashboard" onclick="showTab('dashboard')"><i class="fa-solid fa-chart-pie"></i> Tableau de bord</button>
+            <button class="dtab" data-tab="membres" onclick="showTab('membres')"><i class="fa-solid fa-users"></i> Membres</button>
+            <button class="dtab" data-tab="operations" onclick="showTab('operations')"><i class="fa-solid fa-money-bill-transfer"></i> Opérations</button>
+            <button class="dtab" data-tab="demandes" onclick="showTab('demandes')"><i class="fa-solid fa-inbox"></i> Demandes <span class="tab-badge hidden" id="tabBadgeReq">0</span></button>
+            <button class="dtab" data-tab="reclamations" onclick="showTab('reclamations')"><i class="fa-solid fa-bell"></i> Réclamations <span class="tab-badge hidden" id="tabBadgeClaims">0</span></button>
+            <button class="dtab hidden" id="tabBtnEquipe" data-tab="equipe" onclick="showTab('equipe')"><i class="fa-solid fa-user-shield"></i> Équipe</button>
+            <button class="dtab hidden" id="tabBtnJournal" data-tab="journal" onclick="showTab('journal')"><i class="fa-solid fa-clock-rotate-left"></i> Journal</button>
+        </nav>
+
+        <div class="dpanel" id="panel-dashboard">
         <!-- TABLEAU DE BORD - STATS CAISSE GLOBALE -->
         <div class="stats-grid">
             <div class="stat-card">
@@ -272,193 +290,207 @@
                 </div>
             </div>
         </div>
+        </div>
 
-        <div class="grid-container">
-            <!-- COLONNE GAUCHE : AJOUT MEMBRE & CRÉDIT -->
-            <div>
+        <div class="dpanel hidden" id="panel-membres">
+            <div class="grid-container">
+                <div>
                 <section class="card">
-                    <div class="card-header">
-                        <i class="fa-solid fa-user-plus"></i>
-                        <h3>Nouveau Membre</h3>
-                    </div>
-                    <form onsubmit="handleAddMember(event)">
-                        <div class="form-group">
-                            <label>Nom &amp; Post-nom du Membre</label>
-                            <input type="text" id="memName" required maxlength="80" placeholder="Ex: Bahati Alain">
-                        </div>
-                        <div class="form-group">
-                            <label>Téléphone</label>
-                            <input type="text" id="memPhone" maxlength="25" placeholder="+243 ...">
-                        </div>
-                        <div class="form-group">
-                            <label>Épargne Initiale Versée ($)</label>
-                            <input type="number" id="memEpargne" required min="0" step="0.01" placeholder="Ex: 100">
-                        </div>
-                        <div class="form-group">
-                            <label>Mot de passe par défaut du membre <small style="color:var(--text-muted);font-weight:400;">(le membre le changera à sa 1re connexion)</small></label>
-                            <input type="text" id="memPassword" required minlength="6" maxlength="64" placeholder="6 caractères minimum" autocomplete="off">
-                        </div>
-                        <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le Membre</button>
-                    </form>
-                    <div id="memberResultBox" class="alert hidden"></div>
-                </section>
-
+                                    <div class="card-header">
+                                        <i class="fa-solid fa-user-plus"></i>
+                                        <h3>Nouveau Membre</h3>
+                                    </div>
+                                    <form onsubmit="handleAddMember(event)">
+                                        <div class="form-group">
+                                            <label>Nom &amp; Post-nom du Membre</label>
+                                            <input type="text" id="memName" required maxlength="80" placeholder="Ex: Bahati Alain">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Téléphone</label>
+                                            <input type="text" id="memPhone" maxlength="25" placeholder="+243 ...">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Épargne Initiale Versée ($)</label>
+                                            <input type="number" id="memEpargne" required min="0" step="0.01" placeholder="Ex: 100">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Mot de passe par défaut du membre <small style="color:var(--text-muted);font-weight:400;">(le membre le changera à sa 1re connexion)</small></label>
+                                            <input type="text" id="memPassword" required minlength="6" maxlength="64" placeholder="6 caractères minimum" autocomplete="off">
+                                        </div>
+                                        <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le Membre</button>
+                                    </form>
+                                    <div id="memberResultBox" class="alert hidden"></div>
+                                </section>
+                </div>
+                <div>
                 <section class="card">
-                    <div class="card-header">
-                        <i class="fa-solid fa-calculator"></i>
-                        <h3>Octroyer un Crédit</h3>
-                    </div>
-                    <form onsubmit="handleCreditCalc(event)">
-                        <div class="form-group">
-                            <label>Sélectionner le Membre</label>
-                            <select id="creditMemberSelect" onchange="displayMemberCreditInfo()" required>
-                                <option value="">-- Choisir un membre --</option>
-                            </select>
-                        </div>
-                        <div id="memberInfoHint" class="member-details-box hidden"></div>
-                        <div class="form-group" style="margin-top: 12px;">
-                            <label>Montant du Crédit Demandé ($)</label>
-                            <input type="number" id="calcCreditAmount" required min="0.01" step="0.01" placeholder="Ex: 150">
-                        </div>
-                        <button type="submit" class="btn"><i class="fa-solid fa-hand-holding-dollar"></i> Valider et Octroyer</button>
-                    </form>
-                    <div id="creditResultBox" class="alert hidden"></div>
-                </section>
-
-                <section class="card">
-                    <div class="card-header">
-                        <i class="fa-solid fa-piggy-bank"></i>
-                        <h3>Verser de l'Épargne</h3>
-                    </div>
-                    <form onsubmit="handleDeposit(event)">
-                        <div class="form-group">
-                            <label>Membre</label>
-                            <select id="depositMemberSelect" required>
-                                <option value="">-- Choisir un membre --</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Montant versé ($)</label>
-                            <input type="number" id="depositAmount" required min="0.01" step="0.01" placeholder="Ex: 50">
-                        </div>
-                        <button type="submit" class="btn"><i class="fa-solid fa-plus"></i> Enregistrer le Versement</button>
-                    </form>
-                    <div id="depositResultBox" class="alert hidden"></div>
-                </section>
-
-                <section class="card">
-                    <div class="card-header">
-                        <i class="fa-solid fa-money-bill-transfer"></i>
-                        <h3>Remboursement de Crédit</h3>
-                    </div>
-                    <form onsubmit="handleRepay(event)">
-                        <div class="form-group">
-                            <label>Membre</label>
-                            <select id="repayMemberSelect" onchange="fillRepayCredits()" required>
-                                <option value="">-- Choisir un membre --</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Crédit à rembourser</label>
-                            <select id="repayCreditSelect" required>
-                                <option value="">-- Choisir d'abord un membre --</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Montant remboursé ($)</label>
-                            <input type="number" id="repayAmount" required min="0.01" step="0.01" placeholder="Ex: 75">
-                        </div>
-                        <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le Remboursement</button>
-                    </form>
-                    <div id="repayResultBox" class="alert hidden"></div>
-                </section>
+                                    <div class="card-header">
+                                        <i class="fa-solid fa-users"></i>
+                                        <h3>Répertoire des Membres &amp; Comptes</h3>
+                                    </div>
+                                    <div style="overflow-x: auto;">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Nom &amp; Post-nom</th>
+                                                    <th>Épargne ($)</th>
+                                                    <th>Crédits Reçus</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="membersTableBody">
+                                                <!-- Données chargées dynamiquement -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </section>
+                </div>
             </div>
+        </div>
 
-            <!-- COLONNE DROITE : RÉPERTOIRE & HISTORIQUE DES CRÉDITS -->
-            <div>
+        <div class="dpanel hidden" id="panel-operations">
+            <div class="grid-2">
+                <div>
+                <section class="card">
+                                    <div class="card-header">
+                                        <i class="fa-solid fa-calculator"></i>
+                                        <h3>Octroyer un Crédit</h3>
+                                    </div>
+                                    <form onsubmit="handleCreditCalc(event)">
+                                        <div class="form-group">
+                                            <label>Sélectionner le Membre</label>
+                                            <select id="creditMemberSelect" onchange="displayMemberCreditInfo()" required>
+                                                <option value="">-- Choisir un membre --</option>
+                                            </select>
+                                        </div>
+                                        <div id="memberInfoHint" class="member-details-box hidden"></div>
+                                        <div class="form-group" style="margin-top: 12px;">
+                                            <label>Montant du Crédit Demandé ($)</label>
+                                            <input type="number" id="calcCreditAmount" required min="0.01" step="0.01" placeholder="Ex: 150">
+                                        </div>
+                                        <button type="submit" class="btn"><i class="fa-solid fa-hand-holding-dollar"></i> Valider et Octroyer</button>
+                                    </form>
+                                    <div id="creditResultBox" class="alert hidden"></div>
+                                </section>
+                <section class="card">
+                                    <div class="card-header">
+                                        <i class="fa-solid fa-piggy-bank"></i>
+                                        <h3>Verser de l'Épargne</h3>
+                                    </div>
+                                    <form onsubmit="handleDeposit(event)">
+                                        <div class="form-group">
+                                            <label>Membre</label>
+                                            <select id="depositMemberSelect" required>
+                                                <option value="">-- Choisir un membre --</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Montant versé ($)</label>
+                                            <input type="number" id="depositAmount" required min="0.01" step="0.01" placeholder="Ex: 50">
+                                        </div>
+                                        <button type="submit" class="btn"><i class="fa-solid fa-plus"></i> Enregistrer le Versement</button>
+                                    </form>
+                                    <div id="depositResultBox" class="alert hidden"></div>
+                                </section>
+                </div>
+                <div>
+                <section class="card">
+                                    <div class="card-header">
+                                        <i class="fa-solid fa-money-bill-transfer"></i>
+                                        <h3>Remboursement de Crédit</h3>
+                                    </div>
+                                    <form onsubmit="handleRepay(event)">
+                                        <div class="form-group">
+                                            <label>Membre</label>
+                                            <select id="repayMemberSelect" onchange="fillRepayCredits()" required>
+                                                <option value="">-- Choisir un membre --</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Crédit à rembourser</label>
+                                            <select id="repayCreditSelect" required>
+                                                <option value="">-- Choisir d'abord un membre --</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Montant remboursé ($)</label>
+                                            <input type="number" id="repayAmount" required min="0.01" step="0.01" placeholder="Ex: 75">
+                                        </div>
+                                        <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le Remboursement</button>
+                                    </form>
+                                    <div id="repayResultBox" class="alert hidden"></div>
+                                </section>
+                </div>
+            </div>
+        </div>
+
+        <div class="dpanel hidden" id="panel-demandes">
+                <section class="card">
+                                    <div class="card-header">
+                                        <i class="fa-solid fa-inbox"></i>
+                                        <h3>Demandes des Membres (crédit / retrait)</h3>
+                                    </div>
+                                    <div id="requestsAdminList"></div>
+                                </section>
+        </div>
+
+        <div class="dpanel hidden" id="panel-reclamations">
+                <section class="card">
+                                    <div class="card-header">
+                                        <i class="fa-solid fa-bell"></i>
+                                        <h3>Réclamations des Membres</h3>
+                                    </div>
+                                    <div id="claimsAdminList"></div>
+                                </section>
+        </div>
+
+        <div class="dpanel hidden" id="panel-equipe">
                 <section class="card hidden" id="teamSection">
-                    <div class="card-header">
-                        <i class="fa-solid fa-user-shield"></i>
-                        <h3>Équipe &amp; Postes</h3>
-                    </div>
-                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">
-                        <strong>Poste</strong> : peut tout consulter, saisir et corriger, mais ne peut rien supprimer.
-                        <strong>Accès total</strong> : peut aussi supprimer et gérer l'équipe. La personne crée son compte avec son e-mail (onglet « Équipe / Admin »).
-                    </p>
-                    <form id="staffForm" onsubmit="handleAddStaff(event)">
-                        <div class="form-group">
-                            <label for="staffEmail">E-mail de la personne</label>
-                            <input type="email" id="staffEmail" placeholder="Ex : tresorier@gmail.com" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="staffPoste">Nom du poste</label>
-                            <input type="text" id="staffPoste" maxlength="40" placeholder="Ex : Trésorier, Secrétaire" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="staffLevel">Niveau d'accès</label>
-                            <select id="staffLevel">
-                                <option value="poste">Poste : tout sauf supprimer</option>
-                                <option value="total">Accès total (peut aussi supprimer)</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn"><i class="fa-solid fa-user-plus"></i> Ajouter à l'équipe</button>
-                    </form>
-                    <div id="staffList" style="margin-top:14px;"></div>
-                </section>
+                                    <div class="card-header">
+                                        <i class="fa-solid fa-user-shield"></i>
+                                        <h3>Équipe &amp; Postes</h3>
+                                    </div>
+                                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">
+                                        <strong>Poste</strong> : peut tout consulter, saisir et corriger, mais ne peut rien supprimer.
+                                        <strong>Accès total</strong> : peut aussi supprimer et gérer l'équipe. La personne crée son compte avec son e-mail (onglet « Équipe / Admin »).
+                                    </p>
+                                    <form id="staffForm" onsubmit="handleAddStaff(event)">
+                                        <div class="form-group">
+                                            <label for="staffEmail">E-mail de la personne</label>
+                                            <input type="email" id="staffEmail" placeholder="Ex : tresorier@gmail.com" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffPoste">Nom du poste</label>
+                                            <input type="text" id="staffPoste" maxlength="40" placeholder="Ex : Trésorier, Secrétaire" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="staffLevel">Niveau d'accès</label>
+                                            <select id="staffLevel">
+                                                <option value="poste">Poste : tout sauf supprimer</option>
+                                                <option value="total">Accès total (peut aussi supprimer)</option>
+                                            </select>
+                                        </div>
+                                        <button type="submit" class="btn"><i class="fa-solid fa-user-plus"></i> Ajouter à l'équipe</button>
+                                    </form>
+                                    <div id="staffList" style="margin-top:14px;"></div>
+                                </section>
+        </div>
 
+        <div class="dpanel hidden" id="panel-journal">
                 <section class="card hidden" id="activitySection">
-                    <div class="card-header">
-                        <i class="fa-solid fa-clock-rotate-left"></i>
-                        <h3>Journal d'activité</h3>
-                    </div>
-                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">
-                        Qui a fait quoi, et quand (les 300 dernières actions). Visible par vous seul ; personne ne peut modifier ce journal.
-                    </p>
-                    <div class="form-group">
-                        <select id="activityFilter" onchange="renderActivity()"><option value="">Toutes les personnes</option></select>
-                    </div>
-                    <div id="activityList" style="max-height:340px;overflow-y:auto;"></div>
-                </section>
-
-                <section class="card">
-                    <div class="card-header">
-                        <i class="fa-solid fa-users"></i>
-                        <h3>Répertoire des Membres &amp; Comptes</h3>
-                    </div>
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Nom &amp; Post-nom</th>
-                                    <th>Épargne ($)</th>
-                                    <th>Crédits Reçus</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="membersTableBody">
-                                <!-- Données chargées dynamiquement -->
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <section class="card">
-                    <div class="card-header">
-                        <i class="fa-solid fa-inbox"></i>
-                        <h3>Demandes des Membres (crédit / retrait)</h3>
-                    </div>
-                    <div id="requestsAdminList"></div>
-                </section>
-
-                <section class="card">
-                    <div class="card-header">
-                        <i class="fa-solid fa-bell"></i>
-                        <h3>Réclamations des Membres</h3>
-                    </div>
-                    <div id="claimsAdminList"></div>
-                </section>
-            </div>
+                                    <div class="card-header">
+                                        <i class="fa-solid fa-clock-rotate-left"></i>
+                                        <h3>Journal d'activité</h3>
+                                    </div>
+                                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">
+                                        Qui a fait quoi, et quand (les 300 dernières actions). Visible par vous seul ; personne ne peut modifier ce journal.
+                                    </p>
+                                    <div class="form-group">
+                                        <select id="activityFilter" onchange="renderActivity()"><option value="">Toutes les personnes</option></select>
+                                    </div>
+                                    <div id="activityList" style="max-height:340px;overflow-y:auto;"></div>
+                                </section>
         </div>
     </div>
 
@@ -1136,6 +1168,9 @@
                     document.getElementById('currentUserDisplay').textContent = user.email + (label ? ' · ' + label : '');
                     setHidden('teamSection', level !== 'total');
                     setHidden('activitySection', level !== 'total');
+                    setHidden('tabBtnEquipe', level !== 'total');
+                    setHidden('tabBtnJournal', level !== 'total');
+                    showTab('dashboard');
                     if (level === 'total') {
                         stopStaff = F().listenStaff(list => { staffList = list; renderTeam(); }, err => { /* sans gravité */ });
                         stopActivity = F().listenActivity(list => { activityList = list; renderActivity(); }, err => { /* sans gravité */ });
@@ -1297,6 +1332,7 @@
                 setHidden('memberSection', true);
                 setHidden('dashboardSection', false);
                 document.getElementById('currentUserDisplay').textContent = user.username;
+                showTab('dashboard');
                 updateDashboard();
             } else {
                 setHidden('dashboardSection', true);
@@ -1582,6 +1618,29 @@
         }
 
         // ---------- Équipe & postes (administrateur / accès total) ----------
+        // Onglets du tableau de bord
+        let currentTab = 'dashboard';
+        function showTab(name) {
+            // Équipe et Journal : réservés à l'accès total (en ligne)
+            if ((name === 'equipe' || name === 'journal') && (!CLOUD || !currentUser || currentUser.level !== 'total')) name = 'dashboard';
+            currentTab = name;
+            ['dashboard', 'membres', 'operations', 'demandes', 'reclamations', 'equipe', 'journal'].forEach(t => {
+                setHidden('panel-' + t, t !== name);
+            });
+            if (document.querySelectorAll) {
+                document.querySelectorAll('.dtab').forEach(b => {
+                    if (typeof b.getAttribute !== 'function') return;
+                    if (b.getAttribute('data-tab') === name) b.classList.add('active'); else b.classList.remove('active');
+                });
+            }
+        }
+        function setBadge(id, n) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = n;
+            setHidden(id, !(n > 0));
+        }
+
         function renderTeam() {
             const box = document.getElementById('staffList');
             if (!box) return;
@@ -2105,6 +2164,7 @@
             setHtmlKeepFields('requestsAdminList', html ||
                 '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune demande pour le moment.</p>');
             document.getElementById('statPendingReq').textContent = requests.filter(r => r.status === 'en attente').length;
+            setBadge('tabBadgeReq', requests.filter(r => r.status === 'en attente').length);
         }
 
         // Approuver = exécuter l'opération. Les règles sont revérifiées avec la situation actuelle du membre.
@@ -2309,6 +2369,7 @@
             setHtmlKeepFields('claimsAdminList', html ||
                 '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune réclamation pour le moment.</p>');
             document.getElementById('statOpenClaims').textContent = claims.filter(c => c.status === 'ouverte').length;
+            setBadge('tabBadgeClaims', claims.filter(c => c.status === 'ouverte').length);
         }
 
         function answerClaim(id) {
