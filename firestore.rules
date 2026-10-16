@@ -73,6 +73,20 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Journal d'activité : chaque action de l'équipe y laisse une ligne, signée avec l'e-mail du compte.
+    // Lisible par l'administrateur seulement ; une ligne ne peut jamais être modifiée.
+    match /activity/{entryId} {
+      allow read: if isAdmin();
+      allow create: if isStaff()
+        && request.resource.data.keys().hasOnly(['id', 'date', 'by', 'poste', 'text', 'memberId'])
+        && request.resource.data.id == entryId
+        && request.resource.data.by == request.auth.token.email
+        && request.resource.data.text is string
+        && request.resource.data.text.size() <= 300;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
     // Lien entre un compte de connexion et un membre.
     match /profiles/{uid} {
       allow read: if isStaff() || (signedIn() && request.auth.uid == uid);

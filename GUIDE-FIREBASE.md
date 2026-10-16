@@ -46,6 +46,7 @@ Dans l'application, la section **Équipe & Postes** (visible par l'administrateu
 - **Poste** (Trésorier, Secrétaire…) : peut tout consulter, saisir et corriger, mais **ne peut rien supprimer**.
 - **Accès total** : peut aussi supprimer et gérer l'équipe. Le bouton cadenas passe un poste en accès total (ou l'inverse).
 La personne crée son compte avec cet e-mail (onglet « Équipe / Admin »), clique sur le lien de vérification, puis se connecte. Le bouton « retirer » coupe son accès immédiatement.
+Chaque action de l'équipe (versement, crédit, correction, décision sur une demande, ajout ou retrait d'une personne…) laisse une ligne dans le **Journal d'activité**, avec la date, le nom du poste et l'e-mail. Seuls vous et les personnes en accès total le voient ; personne ne peut le modifier.
 Pour que cela fonctionne, **republiez les règles** du fichier `firestore.rules` (étape 3) : seul l'e-mail de l'administrateur principal y est écrit.
 
 ## Bon à savoir

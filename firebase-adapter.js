@@ -7,6 +7,7 @@
 //   requests/{id}       demandes de crédit / retrait                    -> créées par le membre, traitées par l'admin
 //   profiles/{uid}      lien compte de connexion -> membre (+ mustChange)
 //   loginIndex/{MBR-001} numéro de version du compte (réinitialisation du mot de passe)
+//   activity/{id}       journal des actions de l'équipe (créé par l'équipe, lu par l'administrateur)
 //   staff/{e-mail}      équipe : level 'poste' (tout sauf supprimer) ou 'total' (tous les droits)
 //
 // Le membre se connecte avec son identifiant (ex. MBR-001) : il est transformé en adresse technique
@@ -31,7 +32,7 @@ window.FB_READY = (async () => {
         createUserWithEmailAndPassword, signOut, sendEmailVerification, updatePassword,
         reauthenticateWithCredential, EmailAuthProvider } = authM;
     const { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where,
-        onSnapshot, writeBatch } = fsM;
+        onSnapshot, writeBatch, orderBy, limit } = fsM;
 
     const app = initializeApp(cfg);
     const auth = getAuth(app);
@@ -148,6 +149,15 @@ window.FB_READY = (async () => {
         listenStaff(cb, onError) {
             return onSnapshot(collection(db, 'staff'),
                 snap => cb(snap.docs.map(d => Object.assign({}, d.data(), { email: d.id }))), err => onError(err));
+        },
+
+        // ----- Journal d'activité (visible par l'administrateur seulement, non modifiable) -----
+        async addActivity(entry) {
+            await setDoc(doc(db, 'activity', entry.id), entry);
+        },
+        listenActivity(cb, onError) {
+            const q = query(collection(db, 'activity'), orderBy('date', 'desc'), limit(300));
+            return onSnapshot(q, snap => cb(snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }))), err => onError(err));
         },
 
         // ----- Données -----

@@ -403,6 +403,20 @@
                     <div id="staffList" style="margin-top:14px;"></div>
                 </section>
 
+                <section class="card hidden" id="activitySection">
+                    <div class="card-header">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <h3>Journal d'activité</h3>
+                    </div>
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">
+                        Qui a fait quoi, et quand (les 300 dernières actions). Visible par vous seul ; personne ne peut modifier ce journal.
+                    </p>
+                    <div class="form-group">
+                        <select id="activityFilter" onchange="renderActivity()"><option value="">Toutes les personnes</option></select>
+                    </div>
+                    <div id="activityList" style="max-height:340px;overflow-y:auto;"></div>
+                </section>
+
                 <section class="card">
                     <div class="card-header">
                         <i class="fa-solid fa-users"></i>
@@ -805,6 +819,23 @@
             if (!Array.isArray(m.history)) m.history = [];
             m.history.push({ date: todayISO(), type: type, amount: round2(amount), note: note || '' });
             if (m.history.length > 200) m.history = m.history.slice(-200);
+            if (note !== 'Épargne initiale') {
+                logActivity((OP_LABELS[type] || type) + ' : $' + round2(amount) + ' — ' + m.name + ' (' + m.id + ')' + (note ? ' · ' + note : ''), m.id);
+            }
+        }
+
+        // Journal d'activité (en ligne) : qui a fait quoi, visible par l'administrateur
+        function logActivity(text, memberId) {
+            if (!CLOUD || !F() || !currentUser || !isAdmin(currentUser)) return;
+            const entry = {
+                id: 'A-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+                date: new Date().toISOString(),
+                by: String(currentUser.username),
+                poste: currentUser.poste || 'Administrateur',
+                text: String(text).slice(0, 290),
+                memberId: memberId || ''
+            };
+            F().addActivity(entry).catch(err => setSync('error', 'Journal non enregistré : ' + errText(err)));
         }
 
         // Crée ou réinitialise le compte d'un membre : identifiant = son ID, mot de passe par défaut à changer
@@ -840,7 +871,9 @@
         const lastSynced = { members: {}, claims: {}, requests: {} };
         let stopListening = null;
         let stopStaff = null;
+        let stopActivity = null;
         let staffList = [];
+        let activityList = [];
         let pushChain = Promise.resolve();
         let importChecked = false;
 
@@ -1054,7 +1087,8 @@
         async function onCloudAuth(user) {
             if (stopListening) { stopListening(); stopListening = null; }
             if (stopStaff) { stopStaff(); stopStaff = null; }
-            staffList = [];
+            if (stopActivity) { stopActivity(); stopActivity = null; }
+            staffList = []; activityList = [];
             if (!user) {
                 resetCloudState();
                 currentUser = null;
@@ -1098,8 +1132,10 @@
                     setHidden('dashboardSection', false);
                     document.getElementById('currentUserDisplay').textContent = user.email + (label ? ' · ' + label : '');
                     setHidden('teamSection', level !== 'total');
+                    setHidden('activitySection', level !== 'total');
                     if (level === 'total') {
                         stopStaff = F().listenStaff(list => { staffList = list; renderTeam(); }, err => { /* sans gravité */ });
+                        stopActivity = F().listenActivity(list => { activityList = list; renderActivity(); }, err => { /* sans gravité */ });
                     }
                     updateDashboard();
                 }
@@ -1246,7 +1282,8 @@
             if (CLOUD) {
                 if (stopListening) { stopListening(); stopListening = null; }
                 if (stopStaff) { stopStaff(); stopStaff = null; }
-                staffList = [];
+                if (stopActivity) { stopActivity(); stopActivity = null; }
+                staffList = []; activityList = [];
                 if (F()) F().logout().catch(() => {});
                 resetCloudState();
             }
@@ -1304,6 +1341,7 @@
             if (access.uid) member.authUid = access.uid;
             members.push(member);
             store.set('avec_members', members);
+            logActivity('Nouveau membre : ' + name + ' (' + member.id + '), épargne initiale $' + epargne, member.id);
 
             e.target.reset();
             box.className = 'alert alert-success';
@@ -1331,6 +1369,7 @@
                 const cur = members.find(x => x.id === m.id);
                 if (cur) { cur.authUid = access.uid; store.set('avec_members', members); }
             }
+            logActivity('Mot de passe par défaut redéfini : ' + m.name + ' (' + m.id + ')', m.id);
             updateDashboard();
             alert('Accès défini.\nIdentifiant : ' + m.id + '\nMot de passe par défaut : ' + pwd);
         }
@@ -1533,6 +1572,27 @@
             }).join('');
         }
 
+        function renderActivity() {
+            const box = document.getElementById('activityList');
+            const sel = document.getElementById('activityFilter');
+            if (!box || !sel) return;
+            const people = {};
+            activityList.forEach(a => { people[a.by] = true; });
+            const keep = sel.value;
+            sel.innerHTML = '<option value="">Toutes les personnes</option>' +
+                Object.keys(people).sort().map(p => '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>').join('');
+            sel.value = people[keep] ? keep : '';
+            const list = activityList.filter(a => !sel.value || a.by === sel.value);
+            if (!list.length) { box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Aucune activité enregistrée.</p>'; return; }
+            box.innerHTML = list.map(a => {
+                let when = a.date || '';
+                try { when = new Date(a.date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }); } catch (e) { /* date brute */ }
+                return '<div style="border-bottom:1px solid var(--border);padding:6px 0;">' +
+                    '<small style="color:var(--text-muted);">' + escapeHtml(when) + ' · <strong>' + escapeHtml(a.poste || '') + '</strong> · ' + escapeHtml(a.by || '') + '</small><br>' +
+                    escapeHtml(a.text || '') + '</div>';
+            }).join('');
+        }
+
         async function handleAddStaff(e) {
             e.preventDefault();
             if (!CLOUD || !F() || !currentUser || currentUser.level !== 'total') { alert("Réservé à l'administrateur."); return; }
@@ -1545,6 +1605,7 @@
             if (level === 'total' && !confirm('Donner l\'ACCÈS TOTAL à ' + email + ' ? Cette personne pourra aussi tout supprimer et gérer l\'équipe.')) return;
             try {
                 await F().saveStaff(email, { level: level, poste: poste, addedBy: String(currentUser.username), addedAt: todayISO() });
+                logActivity('Équipe : ' + email + ' ajouté (' + poste + ', ' + (level === 'total' ? 'accès total' : 'sans suppression') + ')');
                 document.getElementById('staffEmail').value = '';
                 document.getElementById('staffPoste').value = '';
             } catch (err) {
@@ -1563,6 +1624,7 @@
             if (!confirm(msg)) return;
             try {
                 await F().saveStaff(email, { level: toTotal ? 'total' : 'poste', poste: st.poste || '', addedBy: st.addedBy || '', addedAt: st.addedAt || '' });
+                logActivity('Équipe : ' + email + (toTotal ? ' passe en accès total' : ' perd le droit de supprimer'));
             } catch (err) {
                 alert("Modification impossible : " + errText(err));
             }
@@ -1573,6 +1635,7 @@
             if (!confirm('Retirer ' + email + ' de l\'équipe ? Son accès est coupé immédiatement.')) return;
             try {
                 await F().removeStaff(email);
+                logActivity('Équipe : ' + email + ' retiré');
             } catch (err) {
                 alert("Suppression impossible : " + errText(err));
             }
@@ -1588,8 +1651,10 @@
             const phone = prompt('Téléphone :', m.phone || '');
             if (phone === null) return;
             if (!name.trim()) { alert('Le nom ne peut pas être vide.'); return; }
+            const oldName = m.name;
             m.name = name.trim().slice(0, 80);
             m.phone = phone.trim().slice(0, 25);
+            logActivity('Fiche modifiée : ' + oldName + ' → ' + m.name + ' (' + m.id + ')', m.id);
             store.set('avec_members', members);
             updateDashboard();
         }
@@ -1604,6 +1669,7 @@
             }
             if (!confirm('Supprimer définitivement le membre ' + m.name + ' (' + m.id + '), son accès et ses réclamations ?')) return;
             const accessUid = m.authUid || null;
+            logActivity('Membre supprimé : ' + m.name + ' (' + m.id + ')', m.id);
             members = members.filter(x => x.id !== id);
             users = users.filter(x => !(x.role === 'member' && x.memberId === id));
             claims = claims.filter(c => c.memberId !== id);
@@ -2052,6 +2118,7 @@
             }
             r.status = 'approuvée';
             r.decisionDate = todayISO();
+            logActivity('Demande de ' + (r.type === 'credit' ? 'crédit' : 'retrait') + ' de $' + r.amount + ' approuvée — ' + m.name + ' (' + m.id + ')', m.id);
             store.set('avec_requests', requests);
             updateDashboard();
             displayMemberCreditInfo();
@@ -2066,6 +2133,7 @@
             r.status = 'refusée';
             r.decision = note || 'Demande refusée.';
             r.decisionDate = todayISO();
+            logActivity('Demande de ' + (r.type === 'credit' ? 'crédit' : 'retrait') + ' de $' + r.amount + ' refusée (' + r.memberId + ')', r.memberId);
             store.set('avec_requests', requests);
             renderAdminRequests();
         }
@@ -2224,6 +2292,7 @@
             c.status = 'traitée';
             c.response = text || 'Votre réclamation a été examinée.';
             c.responseDate = todayISO();
+            logActivity('Réclamation traitée (' + c.memberId + ')', c.memberId);
             store.set('avec_claims', claims);
             renderAdminClaims();
         }
@@ -2233,6 +2302,7 @@
             const c = claims.find(x => x.id === id);
             if (!c) return;
             c.status = 'ouverte';
+            logActivity('Réclamation rouverte (' + c.memberId + ')', c.memberId);
             store.set('avec_claims', claims);
             renderAdminClaims();
         }
