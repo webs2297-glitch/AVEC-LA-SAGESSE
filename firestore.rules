@@ -15,11 +15,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // >>> REMPLACEZ par VOTRE adresse e-mail d'administrateur, en minuscules <<<
+    // >>> REMPLACEZ par les adresses e-mail des administrateurs, en minuscules <<<
+    // Une seule adresse : ['moi@gmail.com']
+    // Plusieurs : ['a@gmail.com', 'b@gmail.com', 'c@gmail.com']  (entre apostrophes, séparées par une virgule)
     function isAdmin() {
       return signedIn()
         && request.auth.token.email_verified == true
-        && request.auth.token.email == 'votre-email@exemple.com';
+        && request.auth.token.email in ['votre-email@exemple.com'];
     }
 
     function profilePath() {
