@@ -98,6 +98,13 @@ window.FB_READY = (async () => {
             throw err;
         },
 
+        // L'administrateur / l'équipe change son propre mot de passe (l'ancien est revérifié)
+        async changeAdminPassword(current, next) {
+            const u = auth.currentUser;
+            await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, current));
+            await updatePassword(u, next);
+        },
+
         // ----- Comptes des membres (administrateur) -----
         // Crée un compte de connexion pour le membre avec le mot de passe par défaut ; remplace l'ancien s'il existe.
         async provisionMember(memberId, password, oldUid) {

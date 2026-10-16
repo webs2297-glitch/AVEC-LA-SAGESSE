@@ -292,6 +292,57 @@
                 </div>
             </div>
         </div>
+            <div class="grid-2" style="margin-top:24px;">
+                <div>
+                    <section class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-id-badge"></i>
+                            <h3>Mon profil</h3>
+                        </div>
+                        <div id="adminProfileBox"></div>
+                    </section>
+
+                    <section class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-key"></i>
+                            <h3>Changer mon mot de passe</h3>
+                        </div>
+                        <form onsubmit="handleAdminPassword(event)">
+                            <div class="form-group">
+                                <label>Mot de passe actuel</label>
+                                <input type="password" id="admPwdCurrent" required autocomplete="current-password">
+                            </div>
+                            <div class="form-group">
+                                <label>Nouveau mot de passe (6 caractères minimum)</label>
+                                <input type="password" id="admPwdNew" required minlength="6" maxlength="64" autocomplete="new-password">
+                            </div>
+                            <div class="form-group">
+                                <label>Confirmer le nouveau mot de passe</label>
+                                <input type="password" id="admPwdConfirm" required minlength="6" maxlength="64" autocomplete="new-password">
+                            </div>
+                            <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le mot de passe</button>
+                        </form>
+                        <div id="admPwdResultBox" class="alert hidden"></div>
+                    </section>
+                </div>
+                <div>
+                    <section class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-envelope-open-text"></i>
+                            <h3>Messages à traiter</h3>
+                        </div>
+                        <div id="todoBox"></div>
+                    </section>
+
+                    <section class="card">
+                        <div class="card-header">
+                            <i class="fa-solid fa-list-check"></i>
+                            <h3>Dernières opérations effectuées</h3>
+                        </div>
+                        <div id="recentOpsBox" style="overflow-x:auto;"></div>
+                    </section>
+                </div>
+            </div>
         </div>
 
         <div class="dpanel hidden" id="panel-membres">
@@ -1635,6 +1686,7 @@
 
             renderAdminRequests();
             renderAdminClaims();
+            renderAdminHome();
         }
 
         function displayMemberCreditInfo() {
@@ -1673,6 +1725,95 @@
                 });
             }
         }
+        // ----- Tableau de bord : profil, messages à traiter, dernières opérations -----
+        function memberLabel(id) {
+            const m = members.find(x => x.id === id);
+            return m ? m.name + ' (' + id + ')' : String(id || '');
+        }
+        function roleLabel(u) {
+            if (!u) return '';
+            if (!CLOUD) return 'Administrateur (mode local)';
+            if (u.level === 'total') return u.poste ? 'Accès total · ' + u.poste : 'Administrateur principal';
+            return 'Poste · ' + (u.poste || 'Équipe');
+        }
+        function renderAdminHome() {
+            const prof = document.getElementById('adminProfileBox');
+            if (!prof || !currentUser || !isAdmin(currentUser)) return;
+            const del = canDelete(currentUser);
+            prof.innerHTML =
+                '<p style="margin-bottom:6px;"><strong>' + escapeHtml(currentUser.username) + '</strong></p>' +
+                '<p style="margin-bottom:6px;"><span class="badge ' + (del ? 'badge-due' : 'badge-ok') + '">' + escapeHtml(roleLabel(currentUser)) + '</span></p>' +
+                '<p style="font-size:0.9rem;color:var(--text-muted);">' +
+                'Suppression de données : <strong>' + (del ? 'autorisée' : 'non autorisée') + '</strong><br>' +
+                'Mode : <strong>' + (CLOUD ? 'en ligne (synchronisé)' : 'local (cet appareil seulement)') + '</strong><br>' +
+                'Membres suivis : <strong>' + members.length + '</strong></p>';
+
+            const todo = document.getElementById('todoBox');
+            if (todo) {
+                const reqs = requests.filter(r => r.status === 'en attente');
+                const cls = claims.filter(c => c.status === 'ouverte');
+                let html = '';
+                if (reqs.length) {
+                    html += '<p><strong>' + reqs.length + ' demande(s) en attente</strong></p><ul style="padding-left:18px;margin:6px 0 10px;">' +
+                        reqs.slice(0, 5).map(r => '<li>' + escapeHtml(memberLabel(r.memberId)) + ' — ' +
+                            (r.type === 'credit' ? 'crédit' : 'retrait') + ' de $' + round2(r.amount) + '</li>').join('') + '</ul>' +
+                        '<button type="button" class="btn-small" onclick="showTab(\'demandes\')">Traiter les demandes</button> ';
+                }
+                if (cls.length) {
+                    html += '<p style="margin-top:12px;"><strong>' + cls.length + ' réclamation(s) ouverte(s)</strong></p><ul style="padding-left:18px;margin:6px 0 10px;">' +
+                        cls.slice(0, 5).map(c => '<li>' + escapeHtml(memberLabel(c.memberId)) + ' — ' + escapeHtml(c.subject || '') +
+                            ' : <em>' + escapeHtml(String(c.message || '').slice(0, 60)) + (String(c.message || '').length > 60 ? '…' : '') + '</em></li>').join('') + '</ul>' +
+                        '<button type="button" class="btn-small" onclick="showTab(\'reclamations\')">Traiter les réclamations</button>';
+                }
+                todo.innerHTML = html || '<p style="color:var(--text-muted);"><i class="fa-solid fa-circle-check" style="color:var(--success, #10b981);"></i> Rien à traiter pour le moment.</p>';
+            }
+
+            const box = document.getElementById('recentOpsBox');
+            if (box) {
+                const ops = [];
+                members.forEach(m => (m.history || []).forEach((h, i) => ops.push({ m: m, h: h, i: i })));
+                ops.sort((a, b) => String(b.h.date).localeCompare(String(a.h.date)) || (b.i - a.i));
+                if (!ops.length) {
+                    box.innerHTML = '<p style="color:var(--text-muted);">Aucune opération enregistrée.</p>';
+                } else {
+                    box.innerHTML = '<table><thead><tr><th>Date</th><th>Membre</th><th>Opération</th><th>Montant</th></tr></thead><tbody>' +
+                        ops.slice(0, 12).map(o => '<tr><td>' + escapeHtml(formatISOtoFR(o.h.date)) + '</td><td>' + escapeHtml(o.m.name) +
+                            '<br><small style="color:var(--text-muted);">' + escapeHtml(o.m.id) + '</small></td><td>' + escapeHtml(OP_LABELS[o.h.type] || o.h.type) +
+                            (o.h.note ? '<br><small style="color:var(--text-muted);">' + escapeHtml(o.h.note) + '</small>' : '') +
+                            '</td><td><strong>$' + round2(o.h.amount) + '</strong></td></tr>').join('') + '</tbody></table>';
+                }
+            }
+        }
+
+        async function handleAdminPassword(e) {
+            e.preventDefault();
+            const box = document.getElementById('admPwdResultBox');
+            const user = currentUser;
+            if (!user || !isAdmin(user)) return;
+            const fail = msg => { box.className = 'alert alert-error'; box.textContent = msg; };
+            const cur = document.getElementById('admPwdCurrent').value;
+            const nw = document.getElementById('admPwdNew').value;
+            const conf = document.getElementById('admPwdConfirm').value;
+            if (!CLOUD && !cryptoAvailable()) { fail("Ce navigateur ne permet pas de protéger les mots de passe. Ouvrez l'application en HTTPS."); return; }
+            if (!CLOUD && (!user.hash || (await hashPassword(cur, user.salt)) !== user.hash)) { fail('Le mot de passe actuel est incorrect.'); return; }
+            if (nw.length < 6) { fail('Le nouveau mot de passe doit contenir au moins 6 caractères.'); return; }
+            if (nw !== conf) { fail('La confirmation ne correspond pas au nouveau mot de passe.'); return; }
+            if (nw === cur) { fail("Le nouveau mot de passe doit être différent de l'ancien."); return; }
+            if (CLOUD) {
+                try { await F().changeAdminPassword(cur, nw); }
+                catch (err) { fail(authErrorMessage(err, 'password')); return; }
+                logActivity('Mot de passe modifié par son titulaire');
+            } else {
+                user.salt = generateSalt();
+                user.hash = await hashPassword(nw, user.salt);
+                delete user.password;
+                store.set('avec_users', users);
+            }
+            e.target.reset();
+            box.className = 'alert alert-success';
+            box.textContent = 'Mot de passe modifié avec succès.';
+        }
+
         function setBadge(id, n) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -2207,6 +2348,7 @@
                 '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune demande pour le moment.</p>');
             document.getElementById('statPendingReq').textContent = requests.filter(r => r.status === 'en attente').length;
             setBadge('tabBadgeReq', requests.filter(r => r.status === 'en attente').length);
+            renderAdminHome();
         }
 
         // Approuver = exécuter l'opération. Les règles sont revérifiées avec la situation actuelle du membre.
@@ -2412,6 +2554,7 @@
                 '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune réclamation pour le moment.</p>');
             document.getElementById('statOpenClaims').textContent = claims.filter(c => c.status === 'ouverte').length;
             setBadge('tabBadgeClaims', claims.filter(c => c.status === 'ouverte').length);
+            renderAdminHome();
         }
 
         function answerClaim(id) {
