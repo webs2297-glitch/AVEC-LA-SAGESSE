@@ -580,13 +580,22 @@
             <div class="grid-2">
                 <div>
                     <section class="card">
-                        <div class="card-header"><i class="fa-solid fa-coins"></i><h3>Encaisser une cotisation (1 000 FC / semaine)</h3></div>
+                        <div class="card-header"><i class="fa-solid fa-coins"></i><h3>Encaisser la cotisation hebdomadaire (<span id="socWeeklyLabel">1 000 FC</span> / semaine)</h3></div>
                         <form onsubmit="handleSocialForm(event)">
                             <div class="form-group"><label>Membre</label>
                                 <select id="socialMemberSelect" required><option value="">-- Choisir un membre --</option></select></div>
                             <div class="form-group"><label>Nombre de semaines payées</label>
                                 <input type="number" id="socialWeeks" required min="1" max="520" step="1" value="1"></div>
                             <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer la cotisation</button>
+                        </form>
+                    </section>
+                    <section class="card">
+                        <div class="card-header"><i class="fa-solid fa-sliders"></i><h3>Montant de la cotisation hebdomadaire</h3></div>
+                        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">Identique pour tous les membres. Le changement vaut pour les prochains encaissements (accès total).</p>
+                        <form onsubmit="saveWeekly(event)">
+                            <div class="form-group"><label>Montant par semaine (FC)</label>
+                                <input type="number" id="weeklyInput" required min="1" step="1"></div>
+                            <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le montant</button>
                         </form>
                     </section>
                     <section class="card">
@@ -632,8 +641,8 @@
                                 <select id="colBenefSelect" required><option value="">-- Choisir un membre --</option></select></div>
                             <div class="form-group"><label>Motif</label>
                                 <input type="text" id="colTitle" required maxlength="100" placeholder="Ex: deuil, maladie..."></div>
-                            <div class="form-group"><label>Part suggérée par membre (FC) <small style="color:var(--text-muted);font-weight:400;">(facultatif)</small></label>
-                                <input type="number" id="colPart" min="0" step="1" placeholder="Ex: 2000"></div>
+                            <div class="form-group"><label>Part de chaque membre (FC) <small style="color:var(--text-muted);font-weight:400;">(fixée une fois pour tous)</small></label>
+                                <input type="number" id="colPart" required min="1" step="1" placeholder="Ex: 2000"></div>
                             <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Ouvrir la cotisation</button>
                         </form>
                     </section>
@@ -641,10 +650,10 @@
                         <div class="card-header"><i class="fa-solid fa-hand-holding-dollar"></i><h3>Enregistrer un versement occasionnel</h3></div>
                         <form onsubmit="handleOccGift(event)">
                             <div class="form-group"><label>Cotisation</label>
-                                <select id="occCollecteSelect" required><option value="">-- Choisir --</option></select></div>
+                                <select id="occCollecteSelect" required onchange="syncOccAmount()"><option value="">-- Choisir --</option></select></div>
                             <div class="form-group"><label>Membre qui verse</label>
                                 <select id="occMemberSelect" required><option value="">-- Choisir un membre --</option></select></div>
-                            <div class="form-group"><label>Montant (FC)</label>
+                            <div class="form-group"><label>Part du membre (FC) <small style="color:var(--text-muted);font-weight:400;">(fixée pour cette cotisation)</small></label>
                                 <input type="number" id="occAmount" required min="1" step="1" placeholder="Ex: 2000"></div>
                             <div class="form-group"><label>Provenance de l'argent</label>
                                 <select id="occSource"><option value="especes">Espèces remises par le membre</option><option value="epargne">Décaisser dans son épargne (FC)</option></select></div>
@@ -1324,11 +1333,12 @@
             };
             const stopData = isAdmin(currentUser) ? F().listenAdmin(h) : F().listenMember(currentUser.memberId, h);
             const stopAnn = F().listenAnnouncements(list => { announcements = list; renderAnnouncements(); }, err => { /* sans gravité */ });
-            stopListening = () => { stopData(); stopAnn(); };
+            const stopSet = F().listenSettings(d => applyWeekly(d && d.weekly), err => { /* sans gravité */ });
+            stopListening = () => { stopData(); stopAnn(); stopSet(); };
         }
 
         function resetCloudState() {
-            members = []; claims = []; requests = []; announcements = [];
+            members = []; claims = []; requests = []; announcements = []; socialWeekly = SOCIAL_DEFAULT;
             cloudLoaded.members = cloudLoaded.claims = cloudLoaded.requests = false;
             lastSynced.members = {}; lastSynced.claims = {}; lastSynced.requests = {};
             importChecked = false;
@@ -2057,7 +2067,30 @@
         }
 
         // ---------- Cas sociaux : cotisation fixe de 1000 FC par semaine et par membre ----------
-        const SOCIAL_WEEKLY = 1000;
+        const SOCIAL_DEFAULT = 1000;
+        let socialWeekly = CLOUD ? SOCIAL_DEFAULT : (Number((store.get('avec_settings', {}) || {}).weekly) > 0 ? Number(store.get('avec_settings', {}).weekly) : SOCIAL_DEFAULT);
+        function applyWeekly(v) {
+            socialWeekly = Number(v) > 0 ? Number(v) : SOCIAL_DEFAULT;
+            if (typeof updateDashboard === 'function' && currentUser) { if (isAdmin(currentUser)) updateDashboard(); else if (currentUser.role === 'member') renderMemberPortal(); }
+        }
+        function saveWeekly(e) {
+            e.preventDefault();
+            if (!requireTotal()) return;
+            const v = round2(parseFloat(document.getElementById('weeklyInput').value));
+            if (!isFinite(v) || v <= 0 || v > 100000000) { socialMsg('Le montant hebdomadaire doit être supérieur à 0.', false); return; }
+            if (v === socialWeekly) { socialMsg('Ce montant est déjà celui en vigueur.', false); return; }
+            const old = socialWeekly;
+            if (CLOUD && F()) {
+                F().saveSettings({ weekly: v, by: String(currentUser.username), date: new Date().toISOString() })
+                    .then(() => socialMsg('Cotisation hebdomadaire fixée à ' + fmt(v, 'FC') + ' par semaine.', true))
+                    .catch(err => socialMsg('Enregistrement impossible : ' + errText(err), false));
+            } else {
+                store.set('avec_settings', { weekly: v });
+                socialMsg('Cotisation hebdomadaire fixée à ' + fmt(v, 'FC') + ' par semaine.', true);
+            }
+            logActivity('Cotisation hebdomadaire cas sociaux changée : ' + fmt(old, 'FC') + ' → ' + fmt(v, 'FC'));
+            applyWeekly(v);
+        }
         function weekIndex(iso) {
             const p = String(iso || '').slice(0, 10).split('-').map(Number);
             if (p.length !== 3 || !p[0]) return null;
@@ -2093,7 +2126,7 @@
             if (!isFinite(weeks) || weeks < 1 || weeks > 520) { socialMsg('Le nombre de semaines doit être entre 1 et 520.', false); return; }
             if (!Array.isArray(m.social)) m.social = [];
             if (!m.socialSince) m.socialSince = todayISO();
-            const amount = weeks * SOCIAL_WEEKLY;
+            const amount = weeks * socialWeekly;
             m.social.push({ id: socialId('S'), date: todayISO(), weeks: weeks, amount: amount });
             logOp(m, 'social', amount, weeks + ' semaine(s)', 'FC');
             store.set('avec_members', members);
@@ -2149,7 +2182,7 @@
         function arrearsText(m) {
             if (!m.socialSince) return '<span class="badge badge-due">Début à définir</span>';
             const a = socialArrears(m);
-            if (a > 0) return '<span class="badge badge-due">' + a + ' sem. en retard (' + fmt(a * SOCIAL_WEEKLY, 'FC') + ')</span>';
+            if (a > 0) return '<span class="badge badge-due">' + a + ' sem. en retard (' + fmt(a * socialWeekly, 'FC') + ')</span>';
             if (a < 0) return '<span class="badge badge-ok">' + (-a) + ' sem. d\'avance</span>';
             return '<span class="badge badge-ok">À jour</span>';
         }
@@ -2181,10 +2214,10 @@
             if (!requireAdmin()) return;
             const b = members.find(x => x.id === document.getElementById('colBenefSelect').value);
             const title = document.getElementById('colTitle').value.trim().slice(0, 100);
-            const part = round2(parseFloat(document.getElementById('colPart').value) || 0);
+            const part = round2(parseFloat(document.getElementById('colPart').value));
             if (!b) { socialMsg('Choisissez le membre concerné.', false); return; }
             if (!title) { socialMsg('Indiquez le motif (maladie, deuil…).', false); return; }
-            if (part < 0 || part > 100000000) { socialMsg('Part suggérée invalide.', false); return; }
+            if (!isFinite(part) || part <= 0 || part > 100000000) { socialMsg('Fixez la part de chaque membre (supérieure à 0).', false); return; }
             if (!Array.isArray(b.collectes)) b.collectes = [];
             b.collectes.push({ id: socialId('C'), date: todayISO(), title: title, part: part, remitted: 0, status: 'ouverte' });
             logActivity('Cotisation occasionnelle ouverte pour ' + b.name + ' (' + b.id + ') : ' + title, b.id);
@@ -2194,19 +2227,30 @@
             socialMsg('Cotisation occasionnelle ouverte pour ' + b.name + '.', true);
             updateDashboard();
         }
+        // Affiche la part fixée dès que la cotisation est choisie
+        function syncOccAmount() {
+            const found = allCollectes().find(x => x.c.id === document.getElementById('occCollecteSelect').value);
+            const f = document.getElementById('occAmount');
+            const fixed = found && Number(found.c.part) > 0;
+            f.value = fixed ? found.c.part : '';
+            f.readOnly = !!fixed;
+        }
         function handleOccGift(e) {
             e.preventDefault();
             if (!requireAdmin()) return;
             const cid = document.getElementById('occCollecteSelect').value;
             const found = allCollectes().find(x => x.c.id === cid);
             const m = members.find(x => x.id === document.getElementById('occMemberSelect').value);
-            const amount = round2(parseFloat(document.getElementById('occAmount').value));
+            const entered = round2(parseFloat(document.getElementById('occAmount').value));
+            // La part est fixée à l'ouverture et identique pour tous (les anciennes cotisations sans part gardent la saisie libre)
+            const amount = found && Number(found.c.part) > 0 ? round2(Number(found.c.part)) : entered;
             const srcEl = document.getElementById('occSource');
             const fromSavings = !!srcEl && srcEl.value === 'epargne';
             if (!found) { socialMsg('Choisissez la cotisation occasionnelle.', false); return; }
             if (found.c.status === 'clôturée') { socialMsg('Cette cotisation est clôturée.', false); return; }
             if (!m) { socialMsg('Choisissez le membre qui verse.', false); return; }
             if (m.id === found.b.id) { socialMsg('Le bénéficiaire ne cotise pas pour lui-même.', false); return; }
+            if (collecteGifts(cid).some(g => g.m.id === m.id)) { socialMsg(m.name + ' a déjà versé sa part pour cette cotisation.', false); return; }
             if (!isFinite(amount) || amount <= 0 || amount > 100000000) { socialMsg('Le montant doit être supérieur à 0.', false); return; }
             if (fromSavings) {
                 const max = availableWithdrawal(m, 'FC');
@@ -2217,7 +2261,7 @@
             m.occ.push({ id: socialId('O'), cid: cid, to: found.b.id, date: todayISO(), amount: amount, source: fromSavings ? 'epargne' : 'especes' });
             logOp(m, 'occ', amount, found.c.title + ' → ' + found.b.name + (fromSavings ? ' (prélevé sur l\'épargne)' : ' (espèces)'), 'FC');
             store.set('avec_members', members);
-            document.getElementById('occAmount').value = '';
+            syncOccAmount();
             socialMsg('Versement de ' + fmt(amount, 'FC') + ' enregistré pour ' + m.name + (fromSavings ? ' (prélevé sur son épargne).' : '.'), true);
             updateDashboard();
         }
@@ -2267,6 +2311,7 @@
             sel.innerHTML = '<option value="">-- Choisir --</option>' + all.filter(x => x.c.status !== 'clôturée').map(x =>
                 '<option value="' + escapeHtml(x.c.id) + '">' + escapeHtml(x.b.name) + ' — ' + escapeHtml(x.c.title) + '</option>').join('');
             if (keep && all.some(x => x.c.id === keep && x.c.status !== 'clôturée')) sel.value = keep;
+            if (!document.getElementById('occAmount').value || document.getElementById('occAmount').readOnly) syncOccAmount();
             list.innerHTML = all.length ? all.map(x => {
                 const gifts = collecteGifts(x.c.id);
                 const total = collecteCollected(x.c.id);
@@ -2278,7 +2323,7 @@
                 return '<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">' +
                     '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><strong>' + escapeHtml(x.b.name) + ' — ' + escapeHtml(x.c.title) + '</strong>' +
                     '<span class="badge ' + (x.c.status === 'clôturée' ? 'badge-due' : 'badge-ok') + '">' + escapeHtml(x.c.status || 'ouverte') + '</span></div>' +
-                    '<small style="color:var(--text-muted);">ouverte le ' + escapeHtml(formatISOtoFR(x.c.date)) + (x.c.part ? ' · part suggérée : ' + fmt(x.c.part, 'FC') : '') + '</small>' +
+                    '<small style="color:var(--text-muted);">ouverte le ' + escapeHtml(formatISOtoFR(x.c.date)) + (x.c.part ? ' · part fixée : ' + fmt(x.c.part, 'FC') + ' par membre' : '') + '</small>' +
                     '<p style="margin-top:6px;font-size:0.9rem;">Récolté : <strong>' + fmt(total, 'FC') + '</strong> · remis : ' + fmt(x.c.remitted || 0, 'FC') + ' · <strong>reste en caisse : ' + fmt(left, 'FC') + '</strong></p>' +
                     '<p style="margin-top:6px;font-size:0.88rem;"><strong>Ont versé (' + gifts.length + ') :</strong> ' +
                     (gifts.length ? gifts.map(g => escapeHtml(g.m.name) + ' ' + fmt(g.o.amount, 'FC') + (g.o.source === 'epargne' ? ' (épargne)' : '')).join(', ') : '<span style="color:var(--text-muted);">personne pour l\'instant</span>') + '</p>' +
@@ -2292,6 +2337,8 @@
             const tb = document.getElementById('socialTableBody');
             if (!tb) return;
             renderOccasional();
+            document.getElementById('socWeeklyLabel').textContent = fmt(socialWeekly, 'FC');
+            const wi = document.getElementById('weeklyInput'); if (wi && document.activeElement !== wi && wi.value !== String(socialWeekly)) wi.value = socialWeekly;
             const fund = socialFund();
             document.getElementById('socFundPaid').textContent = fmt(fund.paid, 'FC');
             document.getElementById('socFundAid').textContent = fmt(fund.aid, 'FC');
@@ -2304,7 +2351,7 @@
                     '<td>' + fmt(socialPaidTotal(m), 'FC') + (socialAidTotal(m) ? '<br><small style="color:var(--text-muted);">aides reçues : ' + fmt(socialAidTotal(m), 'FC') + '</small>' : '') + '</td>' +
                     '<td>' + arrearsText(m) + '</td>' +
                     '<td style="white-space:nowrap;">' +
-                    '<button class="btn-small" onclick="recordSocial(\'' + id + '\', 1)" title="Encaisser 1 semaine (1 000 FC)"><i class="fa-solid fa-plus"></i> 1 sem.</button>' +
+                    '<button class="btn-small" onclick="recordSocial(\'' + id + '\', 1)" title="Encaisser 1 semaine"><i class="fa-solid fa-plus"></i> 1 sem.</button>' +
                     '<button class="btn-small" onclick="setSocialStart(\'' + id + '\')" title="Modifier la date de début"><i class="fa-solid fa-calendar"></i></button>' +
                     (canDelete(currentUser) ? '<button class="btn-small danger" onclick="cancelLastSocial(\'' + id + '\')" title="Annuler la dernière cotisation"><i class="fa-solid fa-rotate-left"></i></button>' : '') +
                     '</td></tr>';
@@ -2321,7 +2368,7 @@
         function renderMemberSocial(m) {
             const box = document.getElementById('mSocialBox');
             if (!box) return;
-            box.innerHTML = '<strong>Cotisation cas sociaux :</strong> ' + fmt(SOCIAL_WEEKLY, 'FC') + ' par semaine · ' +
+            box.innerHTML = '<strong>Cotisation cas sociaux :</strong> ' + fmt(socialWeekly, 'FC') + ' par semaine · ' +
                 socialPaidWeeks(m) + ' semaine(s) payée(s) sur ' + socialDueWeeks(m) + ' (' + fmt(socialPaidTotal(m), 'FC') + ') ' + arrearsText(m) +
                 ((m.occ || []).length ? '<br><strong>Cotisations occasionnelles versées :</strong> ' + fmt(round2(m.occ.reduce((t, o) => t + (Number(o.amount) || 0), 0)), 'FC') : '');
         }

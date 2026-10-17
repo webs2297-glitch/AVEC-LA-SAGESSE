@@ -169,6 +169,14 @@ window.FB_READY = (async () => {
             return onSnapshot(q, snap => cb(snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }))), err => onError(err));
         },
 
+        // ----- Réglages (montant de la cotisation hebdomadaire) -----
+        async saveSettings(data) {
+            await setDoc(doc(db, 'settings', 'social'), data);
+        },
+        listenSettings(cb, onError) {
+            return onSnapshot(doc(db, 'settings', 'social'), s => cb(s.exists() ? s.data() : null), err => onError(err));
+        },
+
         // ----- Annonces (écrites par l'équipe, lues par tous les membres connectés) -----
         async addAnnouncement(entry) {
             await setDoc(doc(db, 'announcements', entry.id), entry);

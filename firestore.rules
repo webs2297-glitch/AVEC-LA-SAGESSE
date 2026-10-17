@@ -78,6 +78,18 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Réglages : montant de la cotisation hebdomadaire « cas sociaux » (lu par tous, modifié par l'accès total)
+    match /settings/{settingId} {
+      allow read: if isStaff() || hasProfile();
+      allow create, update: if isAdmin()
+        && settingId == 'social'
+        && request.resource.data.keys().hasOnly(['weekly', 'by', 'date'])
+        && request.resource.data.weekly is number
+        && request.resource.data.weekly > 0
+        && request.resource.data.weekly <= 100000000;
+      allow delete: if false;
+    }
+
     // Annonces : écrites par l'équipe, lues par tous les membres connectés ayant un compte.
     match /announcements/{annId} {
       allow read: if isStaff() || hasProfile();
