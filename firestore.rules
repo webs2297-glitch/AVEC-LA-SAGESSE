@@ -78,6 +78,23 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Annonces : écrites par l'équipe, lues par tous les membres connectés ayant un compte.
+    match /announcements/{annId} {
+      allow read: if isStaff() || hasProfile();
+      allow create, update: if isStaff()
+        && request.resource.data.keys().hasOnly(['id', 'date', 'title', 'text', 'important', 'by', 'poste'])
+        && request.resource.data.id == annId
+        && request.resource.data.by == request.auth.token.email
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 80
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000
+        && request.resource.data.important is bool;
+      allow delete: if isAdmin();
+    }
+
     // Journal d'activité : chaque action de l'équipe y laisse une ligne, signée avec l'e-mail du compte.
     // Lisible par l'administrateur seulement ; une ligne ne peut jamais être modifiée.
     match /activity/{entryId} {

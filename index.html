@@ -287,6 +287,7 @@
             <button class="dtab" data-tab="membres" onclick="showTab('membres')"><i class="fa-solid fa-users"></i> Membres</button>
             <button class="dtab" data-tab="operations" onclick="showTab('operations')"><i class="fa-solid fa-money-bill-transfer"></i> Opérations</button>
             <button class="dtab" data-tab="social" onclick="showTab('social')"><i class="fa-solid fa-hand-holding-heart"></i> Cas sociaux</button>
+            <button class="dtab" data-tab="annonces" onclick="showTab('annonces')"><i class="fa-solid fa-bullhorn"></i> Annonces</button>
             <button class="dtab" data-tab="demandes" onclick="showTab('demandes')"><i class="fa-solid fa-inbox"></i> Demandes <span class="tab-badge hidden" id="tabBadgeReq">0</span></button>
             <button class="dtab" data-tab="reclamations" onclick="showTab('reclamations')"><i class="fa-solid fa-bell"></i> Réclamations <span class="tab-badge hidden" id="tabBadgeClaims">0</span></button>
             <button class="dtab hidden" id="tabBtnEquipe" data-tab="equipe" onclick="showTab('equipe')"><i class="fa-solid fa-user-shield"></i> Équipe</button>
@@ -664,6 +665,29 @@
             </div>
         </div>
 
+        <div class="dpanel hidden" id="panel-annonces">
+            <div class="grid-2">
+                <section class="card">
+                    <div class="card-header"><i class="fa-solid fa-bullhorn"></i><h3>Publier une annonce</h3></div>
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">Tous les membres la liront dans leur compte.</p>
+                    <form onsubmit="handleAnnouncement(event)">
+                        <div class="form-group"><label>Titre</label>
+                            <input type="text" id="annTitle" required maxlength="80" placeholder="Ex: Réunion de samedi"></div>
+                        <div class="form-group"><label>Message</label>
+                            <textarea id="annText" required maxlength="1000" rows="5" placeholder="Écrivez votre message aux membres..."></textarea></div>
+                        <div class="form-group"><label style="display:flex;align-items:center;gap:8px;font-weight:500;">
+                            <input type="checkbox" id="annImportant" style="width:auto;"> Annonce importante (mise en avant)</label></div>
+                        <button type="submit" class="btn"><i class="fa-solid fa-paper-plane"></i> Publier l'annonce</button>
+                    </form>
+                    <div id="annResultBox" class="alert hidden"></div>
+                </section>
+                <section class="card">
+                    <div class="card-header"><i class="fa-solid fa-list"></i><h3>Annonces publiées</h3></div>
+                    <div id="annAdminList"></div>
+                </section>
+            </div>
+        </div>
+
         <div class="dpanel hidden" id="panel-demandes">
                 <section class="card">
                                     <div class="card-header">
@@ -761,6 +785,10 @@
         </div>
 
         <div id="memberDataWrap">
+            <section class="card hidden" id="memberAnnSection" style="margin-bottom:16px;">
+                <div class="card-header"><i class="fa-solid fa-bullhorn"></i><h3>Annonces</h3></div>
+                <div id="memberAnnList"></div>
+            </section>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
@@ -1078,6 +1106,7 @@
         normalizeMembers();
 
         // ---------- Rôles, historique des opérations, réclamations ----------
+        let announcements = CLOUD ? [] : store.get('avec_annonces', []);
         let claims = CLOUD ? [] : store.get('avec_claims', []);
         let requests = CLOUD ? [] : store.get('avec_requests', []);
         let currentUser = null;
@@ -1293,11 +1322,13 @@
                 requests: a => { requests = a; syncSnapshot('requests'); },
                 error: onSyncError
             };
-            stopListening = isAdmin(currentUser) ? F().listenAdmin(h) : F().listenMember(currentUser.memberId, h);
+            const stopData = isAdmin(currentUser) ? F().listenAdmin(h) : F().listenMember(currentUser.memberId, h);
+            const stopAnn = F().listenAnnouncements(list => { announcements = list; renderAnnouncements(); }, err => { /* sans gravité */ });
+            stopListening = () => { stopData(); stopAnn(); };
         }
 
         function resetCloudState() {
-            members = []; claims = []; requests = [];
+            members = []; claims = []; requests = []; announcements = [];
             cloudLoaded.members = cloudLoaded.claims = cloudLoaded.requests = false;
             lastSynced.members = {}; lastSynced.claims = {}; lastSynced.requests = {};
             importChecked = false;
@@ -1933,6 +1964,7 @@
 
             renderAdminRequests();
             renderAdminClaims();
+            renderAnnouncements();
             labelTables();
             renderAdminHome();
         }
@@ -1952,6 +1984,75 @@
                     ' · <strong>crédit encore possible : <span style="color:var(--primary); font-weight:bold;">' + fmt(availableCeiling(member, d), d) + '</span></strong>';
                 hintBox.innerHTML = line('USD') + '<br>' + line('FC');
                 hintBox.classList.remove('hidden');
+            }
+        }
+
+        // ---------- Annonces de l'administrateur, lues par tous les membres ----------
+        function annSorted() {
+            return announcements.slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+        }
+        function annHtml(a, admin) {
+            const d = new Date(a.date);
+            const when = isNaN(d) ? '' : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+            return '<div style="border:1px solid ' + (a.important ? 'var(--warning)' : 'var(--border)') + ';border-radius:10px;padding:12px;margin-bottom:10px;' + (a.important ? 'background:#fffbeb;' : '') + '">' +
+                '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><strong>' + (a.important ? '<i class="fa-solid fa-star" style="color:var(--warning);"></i> ' : '') + escapeHtml(a.title) + '</strong>' +
+                '<small style="color:var(--text-muted);">' + escapeHtml(when) + '</small></div>' +
+                '<p style="margin-top:6px;white-space:pre-wrap;font-size:0.92rem;">' + escapeHtml(a.text) + '</p>' +
+                (admin ? '<small style="color:var(--text-muted);">par ' + escapeHtml(a.by || '') + '</small>' +
+                    (canDelete(currentUser) ? '<div style="margin-top:6px;"><button class="btn-small danger" onclick="deleteAnnouncement(\'' + escapeHtml(a.id) + '\')"><i class="fa-solid fa-trash"></i> Supprimer</button></div>' : '') : '') +
+                '</div>';
+        }
+        function renderAnnouncements() {
+            const list = annSorted();
+            const admin = document.getElementById('annAdminList');
+            if (admin) admin.innerHTML = list.length ? list.map(a => annHtml(a, true)).join('') :
+                '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune annonce publiée.</p>';
+            const box = document.getElementById('memberAnnList');
+            if (box) {
+                box.innerHTML = list.slice(0, 10).map(a => annHtml(a, false)).join('');
+                setHidden('memberAnnSection', list.length === 0);
+            }
+        }
+        function handleAnnouncement(e) {
+            e.preventDefault();
+            if (!requireAdmin()) return;
+            const box = document.getElementById('annResultBox');
+            const title = document.getElementById('annTitle').value.trim().slice(0, 80);
+            const text = document.getElementById('annText').value.trim().slice(0, 1000);
+            if (!title || !text) { box.className = 'alert alert-error'; box.textContent = 'Le titre et le message sont obligatoires.'; return; }
+            const entry = {
+                id: 'N-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6),
+                date: new Date().toISOString(),
+                title: title, text: text,
+                important: document.getElementById('annImportant').checked,
+                by: String(currentUser.username),
+                poste: currentUser.poste || 'Administrateur'
+            };
+            if (CLOUD && F()) {
+                F().addAnnouncement(entry).then(() => {
+                    box.className = 'alert alert-success'; box.textContent = 'Annonce publiée : tous les membres peuvent la lire.';
+                }).catch(err => { box.className = 'alert alert-error'; box.textContent = 'Publication impossible : ' + errText(err); });
+            } else {
+                announcements.push(entry);
+                store.set('avec_annonces', announcements);
+                box.className = 'alert alert-success'; box.textContent = 'Annonce publiée : tous les membres peuvent la lire.';
+                renderAnnouncements();
+            }
+            logActivity('Annonce publiée : ' + title);
+            document.getElementById('annTitle').value = '';
+            document.getElementById('annText').value = '';
+            document.getElementById('annImportant').checked = false;
+        }
+        function deleteAnnouncement(id) {
+            if (!requireTotal()) return;
+            const a = announcements.find(x => x.id === id);
+            if (!a || !confirm('Supprimer l\'annonce « ' + a.title + ' » ?')) return;
+            logActivity('Annonce supprimée : ' + a.title);
+            if (CLOUD && F()) { F().removeAnnouncement(id).catch(err => alert('Suppression impossible : ' + errText(err))); }
+            else {
+                announcements = announcements.filter(x => x.id !== id);
+                store.set('avec_annonces', announcements);
+                renderAnnouncements();
             }
         }
 
@@ -2258,7 +2359,7 @@
             currentTab = name;
             syncHeaderHeight();
             labelTables();
-            ['dashboard', 'membres', 'operations', 'social', 'demandes', 'reclamations', 'equipe', 'journal'].forEach(t => {
+            ['dashboard', 'membres', 'operations', 'social', 'annonces', 'demandes', 'reclamations', 'equipe', 'journal'].forEach(t => {
                 setHidden('panel-' + t, t !== name);
             });
             if (document.querySelectorAll) {
@@ -2764,6 +2865,7 @@
                 '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">Aucune opération enregistrée.</td></tr>';
 
             renderMemberSocial(m);
+            renderAnnouncements();
             renderMemberLimits(m);
             renderMemberRequests(m.id);
             renderMemberClaims(m.id);

@@ -3,6 +3,7 @@
 //
 // Organisation des données (voir firestore.rules) :
 //   members/{MBR-001}   fiche du membre (épargne, crédits, historique)  -> écrite par l'administrateur
+//   announcements/{id}  annonces de l'administrateur, lues par tous les membres
 //   claims/{id}         réclamations                                    -> créées par le membre, traitées par l'admin
 //   requests/{id}       demandes de crédit / retrait                    -> créées par le membre, traitées par l'admin
 //   profiles/{uid}      lien compte de connexion -> membre (+ mustChange)
@@ -165,6 +166,18 @@ window.FB_READY = (async () => {
         },
         listenActivity(cb, onError) {
             const q = query(collection(db, 'activity'), orderBy('date', 'desc'), limit(300));
+            return onSnapshot(q, snap => cb(snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }))), err => onError(err));
+        },
+
+        // ----- Annonces (écrites par l'équipe, lues par tous les membres connectés) -----
+        async addAnnouncement(entry) {
+            await setDoc(doc(db, 'announcements', entry.id), entry);
+        },
+        async removeAnnouncement(id) {
+            await deleteDoc(doc(db, 'announcements', id));
+        },
+        listenAnnouncements(cb, onError) {
+            const q = query(collection(db, 'announcements'), orderBy('date', 'desc'), limit(50));
             return onSnapshot(q, snap => cb(snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }))), err => onError(err));
         },
 
