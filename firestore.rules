@@ -90,6 +90,26 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Profil complété par le membre lui-même (adresse, profession, personne à prévenir…).
+    // Le membre écrit uniquement SON profil ; l'équipe le lit ; seul l'administrateur peut le supprimer.
+    function okText(v, n) {
+      return v is string && v.size() <= n;
+    }
+    match /memberProfiles/{profileId} {
+      allow read: if isStaff() || (hasProfile() && myMemberId() == profileId);
+      allow create, update: if hasProfile() && myMemberId() == profileId
+        && request.resource.data.keys().hasOnly(['memberId', 'address', 'birth', 'profession', 'email', 'kinName', 'kinPhone', 'note', 'updatedAt'])
+        && request.resource.data.memberId == profileId
+        && okText(request.resource.data.get('address', ''), 120)
+        && okText(request.resource.data.get('birth', ''), 10)
+        && okText(request.resource.data.get('profession', ''), 80)
+        && okText(request.resource.data.get('email', ''), 80)
+        && okText(request.resource.data.get('kinName', ''), 80)
+        && okText(request.resource.data.get('kinPhone', ''), 25)
+        && okText(request.resource.data.get('note', ''), 300);
+      allow delete: if isAdmin();
+    }
+
     // Annonces : écrites par l'équipe, lues par tous les membres connectés ayant un compte.
     match /announcements/{annId} {
       allow read: if isStaff() || hasProfile();

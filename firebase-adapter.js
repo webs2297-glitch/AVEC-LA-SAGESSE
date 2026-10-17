@@ -169,6 +169,23 @@ window.FB_READY = (async () => {
             return onSnapshot(q, snap => cb(snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }))), err => onError(err));
         },
 
+        // ----- Profil complété par le membre (adresse, profession, personne à prévenir…) -----
+        async saveMemberProfile(memberId, data) {
+            await setDoc(doc(db, 'memberProfiles', memberId), data);
+        },
+        async removeMemberProfile(memberId) {
+            await deleteDoc(doc(db, 'memberProfiles', memberId));
+        },
+        // L'équipe reçoit tous les profils ; renvoie { MBR-001: {...}, ... }
+        listenMemberProfiles(cb, onError) {
+            return onSnapshot(collection(db, 'memberProfiles'), snap => {
+                const map = {}; snap.docs.forEach(d => { map[d.id] = d.data(); }); cb(map);
+            }, err => onError(err));
+        },
+        listenMyProfile(memberId, cb, onError) {
+            return onSnapshot(doc(db, 'memberProfiles', memberId), s => cb(s.exists() ? { [memberId]: s.data() } : {}), err => onError(err));
+        },
+
         // ----- Réglages (montant de la cotisation hebdomadaire) -----
         async saveSettings(data) {
             await setDoc(doc(db, 'settings', 'social'), data);

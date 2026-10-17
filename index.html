@@ -120,6 +120,14 @@
         .stat-content .value { font-size: 1.25rem; font-weight: 700; margin-top: 4px; color: var(--text-main); }
 
         .value-fc { font-size: 1.05rem; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
+        .member-link { color: var(--primary); font-weight: 600; text-decoration: none; }
+        .member-link:hover { text-decoration: underline; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } }
+        .detail-grid > * { min-width: 0; }
+        .kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 0.9rem; }
+        .kv span:first-child { color: var(--text-muted); }
+        .kv span:last-child { text-align: right; font-weight: 600; word-break: break-word; }
         .dtabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--border); overflow-x: auto; position: sticky; top: var(--hdr-h, 0px); z-index: 40; background: var(--bg-main); padding-top: 4px; }
         .dtab { flex: 0 0 auto; padding: 10px 14px; border: none; background: none; font-weight: 600; font-size: 0.92rem; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; white-space: nowrap; }
         .dtab.active { color: var(--primary); border-bottom-color: var(--primary); }
@@ -487,6 +495,11 @@
             </div>
         </div>
 
+        <div class="dpanel hidden" id="panel-membre">
+            <button class="btn-small" style="margin-bottom:14px;" onclick="closeMemberDetail()"><i class="fa-solid fa-arrow-left"></i> Retour à la liste des membres</button>
+            <div id="memberDetail"></div>
+        </div>
+
         <div class="dpanel hidden" id="panel-operations">
             <div class="grid-2">
                 <div>
@@ -794,6 +807,15 @@
         </div>
 
         <div id="memberDataWrap">
+            <section class="card" id="memberProfileSection" style="margin-bottom:16px;">
+                <div class="card-header"><i class="fa-solid fa-id-card"></i><h3>Mon profil</h3></div>
+                <p id="pfProgress" style="font-size:0.88rem;color:var(--text-muted);margin-bottom:10px;"></p>
+                <form onsubmit="handleSaveProfile(event)">
+                    <div id="memberProfileForm" class="detail-grid"></div>
+                    <button type="submit" class="btn" style="margin-top:12px;"><i class="fa-solid fa-floppy-disk"></i> Enregistrer mon profil</button>
+                </form>
+                <div id="pfResultBox" class="alert hidden"></div>
+            </section>
             <section class="card hidden" id="memberAnnSection" style="margin-bottom:16px;">
                 <div class="card-header"><i class="fa-solid fa-bullhorn"></i><h3>Annonces</h3></div>
                 <div id="memberAnnList"></div>
@@ -1115,6 +1137,7 @@
         normalizeMembers();
 
         // ---------- Rôles, historique des opérations, réclamations ----------
+        let memberProfiles = CLOUD ? {} : (store.get('avec_mprofiles', {}) || {});
         let announcements = CLOUD ? [] : store.get('avec_annonces', []);
         let claims = CLOUD ? [] : store.get('avec_claims', []);
         let requests = CLOUD ? [] : store.get('avec_requests', []);
@@ -1334,11 +1357,15 @@
             const stopData = isAdmin(currentUser) ? F().listenAdmin(h) : F().listenMember(currentUser.memberId, h);
             const stopAnn = F().listenAnnouncements(list => { announcements = list; renderAnnouncements(); }, err => { /* sans gravité */ });
             const stopSet = F().listenSettings(d => applyWeekly(d && d.weekly), err => { /* sans gravité */ });
-            stopListening = () => { stopData(); stopAnn(); stopSet(); };
+            const onProfiles = map => { memberProfiles = map || {}; if (!currentUser) return; if (isAdmin(currentUser)) updateDashboard(); else renderMemberPortal(); };
+            const stopProf = isAdmin(currentUser)
+                ? F().listenMemberProfiles(onProfiles, err => { /* sans gravité */ })
+                : F().listenMyProfile(currentUser.memberId, onProfiles, err => { /* sans gravité */ });
+            stopListening = () => { stopData(); stopAnn(); stopSet(); stopProf(); };
         }
 
         function resetCloudState() {
-            members = []; claims = []; requests = []; announcements = []; socialWeekly = SOCIAL_DEFAULT;
+            members = []; claims = []; requests = []; announcements = []; memberProfiles = {}; socialWeekly = SOCIAL_DEFAULT;
             cloudLoaded.members = cloudLoaded.claims = cloudLoaded.requests = false;
             lastSynced.members = {}; lastSynced.claims = {}; lastSynced.requests = {};
             importChecked = false;
@@ -1925,10 +1952,11 @@
                     : '<span class="badge badge-due">Pas d\'accès</span>';
                 rows += '<tr>' +
                     '<td><strong>' + idAttr + '</strong></td>' +
-                    '<td>' + escapeHtml(m.name) + '<br><small style="color:var(--text-muted);">' + escapeHtml(m.phone || '') + '</small><br>' + accessBadge + '</td>' +
+                    '<td><a href="#" class="member-link" onclick="openMemberDetail(\'' + idAttr + '\'); return false;">' + escapeHtml(m.name) + '</a><br><small style="color:var(--text-muted);">' + escapeHtml(m.phone || '') + '</small><br>' + accessBadge + '</td>' +
                     '<td><strong>' + fmt(epargne) + '</strong><br><span style="font-weight:600;color:var(--text-muted);">' + fmt(sav(m, 'FC'), 'FC') + '</span></td>' +
                     '<td>' + creditsListHtml + '</td>' +
                     '<td style="white-space:nowrap;">' +
+                        '<button class="btn-small" onclick="openMemberDetail(\'' + idAttr + '\')" title="Voir tous les détails du membre"><i class="fa-solid fa-eye"></i> Détails</button>' +
                         '<button class="btn-small" onclick="editMember(\'' + idAttr + '\')" title="Modifier le nom / téléphone"><i class="fa-solid fa-pen"></i></button>' +
                         '<button class="btn-small" onclick="correctEpargne(\'' + idAttr + '\', \'USD\')" title="Corriger l\'épargne en dollars"><i class="fa-solid fa-coins"></i> $</button>' +
                         '<button class="btn-small" onclick="correctEpargne(\'' + idAttr + '\', \'FC\')" title="Corriger l\'épargne en francs congolais"><i class="fa-solid fa-coins"></i> FC</button>' +
@@ -1975,6 +2003,7 @@
             renderAdminRequests();
             renderAdminClaims();
             renderAnnouncements();
+            if (detailMemberId) renderMemberDetail();
             labelTables();
             renderAdminHome();
         }
@@ -1995,6 +2024,156 @@
                 hintBox.innerHTML = line('USD') + '<br>' + line('FC');
                 hintBox.classList.remove('hidden');
             }
+        }
+
+        // ---------- Profil du membre (rempli par le membre) et fiche détaillée (vue par l'équipe) ----------
+        const PROFILE_FIELDS = [
+            ['address', 'Adresse', 120, 'text'],
+            ['birth', 'Date de naissance', 10, 'date'],
+            ['profession', 'Profession', 80, 'text'],
+            ['email', 'E-mail', 80, 'email'],
+            ['kinName', 'Personne à prévenir en cas de besoin', 80, 'text'],
+            ['kinPhone', 'Téléphone de cette personne', 25, 'text'],
+            ['note', 'Autres informations', 300, 'text']
+        ];
+        let profileDirty = false;
+        let detailMemberId = null;
+        function profileCount(p) { return PROFILE_FIELDS.filter(f => p && String(p[f[0]] || '').trim()).length; }
+        function renderMemberProfile(m) {
+            const form = document.getElementById('memberProfileForm');
+            if (!form) return;
+            const p = memberProfiles[m.id] || {};
+            if (!form.getAttribute || form.getAttribute('data-built') !== m.id) {
+                form.innerHTML = PROFILE_FIELDS.map(f => '<div class="form-group"><label>' + escapeHtml(f[1]) + '</label><input type="' + f[3] + '" id="pf_' + f[0] + '" maxlength="' + f[2] + '" oninput="profileDirty = true"></div>').join('');
+                if (form.setAttribute) form.setAttribute('data-built', m.id);
+                profileDirty = false;
+            }
+            if (!profileDirty) PROFILE_FIELDS.forEach(f => { const el = document.getElementById('pf_' + f[0]); if (el) el.value = p[f[0]] || ''; });
+            const n = profileCount(p);
+            document.getElementById('pfProgress').textContent = n === PROFILE_FIELDS.length
+                ? 'Profil complet. Merci ! Vous pouvez le modifier à tout moment.'
+                : 'Profil à compléter : ' + n + ' information(s) sur ' + PROFILE_FIELDS.length + ' renseignée(s).';
+        }
+        function handleSaveProfile(e) {
+            e.preventDefault();
+            const box = document.getElementById('pfResultBox');
+            if (!currentUser || currentUser.role !== 'member') return;
+            const data = { memberId: currentUser.memberId, updatedAt: new Date().toISOString() };
+            PROFILE_FIELDS.forEach(f => { const el = document.getElementById('pf_' + f[0]); data[f[0]] = el ? String(el.value || '').trim().slice(0, f[2]) : ''; });
+            if (data.birth && !/^\d{4}-\d{2}-\d{2}$/.test(data.birth)) { box.className = 'alert alert-error'; box.textContent = 'Date de naissance invalide.'; return; }
+            if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) { box.className = 'alert alert-error'; box.textContent = 'Adresse e-mail invalide.'; return; }
+            const done = () => { profileDirty = false; box.className = 'alert alert-success'; box.textContent = 'Profil enregistré. L\'administrateur peut le consulter.'; };
+            if (CLOUD && F()) {
+                F().saveMemberProfile(data.memberId, data).then(() => { memberProfiles[data.memberId] = data; done(); renderMemberProfile(members.find(x => x.id === data.memberId) || { id: data.memberId }); })
+                    .catch(err => { box.className = 'alert alert-error'; box.textContent = 'Enregistrement impossible : ' + errText(err); });
+            } else {
+                memberProfiles[data.memberId] = data;
+                store.set('avec_mprofiles', memberProfiles);
+                done();
+                renderMemberProfile(members.find(x => x.id === data.memberId) || { id: data.memberId });
+            }
+        }
+        function openMemberDetail(id) {
+            if (!members.some(x => x.id === id)) return;
+            detailMemberId = id;
+            showTab('membre');
+            renderMemberDetail();
+            try { window.scrollTo(0, 0); } catch (e) {}
+        }
+        function closeMemberDetail() {
+            detailMemberId = null;
+            showTab('membres');
+        }
+        function kv(label, value) { return '<div class="kv"><span>' + escapeHtml(label) + '</span><span>' + value + '</span></div>'; }
+        function detailCard(icon, title, body) {
+            return '<section class="card"><div class="card-header"><i class="fa-solid ' + icon + '"></i><h3>' + title + '</h3></div>' + body + '</section>';
+        }
+        function emptyP(t) { return '<p style="color:var(--text-muted);font-size:0.88rem;">' + t + '</p>'; }
+        function renderMemberDetail() {
+            const box = document.getElementById('memberDetail');
+            if (!box) return;
+            const m = members.find(x => x.id === detailMemberId);
+            if (!m) { box.innerHTML = ''; return; }
+            const id = escapeHtml(m.id);
+            const today = todayISO();
+            const hasAccess = CLOUD ? !!m.authUid : users.some(x => x.role === 'member' && x.memberId === m.id);
+            const p = memberProfiles[m.id] || null;
+            // 1. Identité
+            const head = detailCard('fa-id-badge', escapeHtml(m.name) + ' <small style="color:var(--text-muted);font-weight:500;">(' + id + ')</small>',
+                kv('Téléphone', escapeHtml(m.phone || '—')) +
+                kv('Accès au compte', hasAccess ? '<span class="badge badge-ok">Actif</span>' : '<span class="badge badge-due">Pas d\'accès</span>') +
+                kv('Cotisation cas sociaux depuis', m.socialSince ? escapeHtml(formatISOtoFR(m.socialSince)) : 'à définir') +
+                '<div style="margin-top:10px;">' +
+                '<button class="btn-small" onclick="editMember(\'' + id + '\')"><i class="fa-solid fa-pen"></i> Modifier</button>' +
+                '<button class="btn-small" onclick="resetMemberPassword(\'' + id + '\')"><i class="fa-solid fa-key"></i> Mot de passe</button>' +
+                '<button class="btn-small" onclick="correctEpargne(\'' + id + '\', \'USD\')"><i class="fa-solid fa-coins"></i> Corriger $</button>' +
+                '<button class="btn-small" onclick="correctEpargne(\'' + id + '\', \'FC\')"><i class="fa-solid fa-coins"></i> Corriger FC</button></div>');
+            // 2. Comptes
+            const accounts = detailCard('fa-wallet', 'Comptes',
+                kv('Épargne en dollars', fmt(m.epargne)) + kv('Épargne en francs', fmt(sav(m, 'FC'), 'FC')) +
+                kv('Crédit en cours ($)', fmt(memberOutstanding(m, 'USD'))) + kv('Crédit en cours (FC)', fmt(memberOutstanding(m, 'FC'), 'FC')) +
+                kv('Crédit possible', fmt(availableCeiling(m, 'USD')) + ' · ' + fmt(availableCeiling(m, 'FC'), 'FC')) +
+                kv('Retrait possible', fmt(availableWithdrawal(m, 'USD')) + ' · ' + fmt(availableWithdrawal(m, 'FC'), 'FC')));
+            // 3. Profil rempli par le membre
+            const n = profileCount(p);
+            const profile = detailCard('fa-id-card', 'Profil rempli par le membre',
+                '<p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:6px;">' + (n === PROFILE_FIELDS.length ? 'Profil complet' : n + ' information(s) sur ' + PROFILE_FIELDS.length + ' renseignée(s)') +
+                (p && p.updatedAt ? ' · mis à jour le ' + escapeHtml(formatISOtoFR(String(p.updatedAt).slice(0, 10))) : '') + '</p>' +
+                PROFILE_FIELDS.map(f => {
+                    const v = p && String(p[f[0]] || '').trim();
+                    return kv(f[1], v ? escapeHtml(f[0] === 'birth' ? formatISOtoFR(v) : v) : '<span style="color:var(--text-muted);font-weight:400;">non renseigné</span>');
+                }).join(''));
+            // 4. Crédits
+            let crows = '';
+            (m.credits || []).forEach(c => {
+                const cd = devOf(c), rest = creditRemaining(c);
+                const badge = rest === 0 ? '<span class="badge badge-ok">Remboursé</span>' : (c.dueDate && c.dueDate < today ? '<span class="badge badge-late">En retard</span>' : '<span class="badge badge-due">En cours</span>');
+                crows += '<tr><td>' + escapeHtml(formatISOtoFR(c.date)) + '</td><td>' + fmt(c.amount, cd) + '</td><td>' + fmt(c.interet, cd) + '</td><td>' + fmt(c.repaid, cd) + '</td><td>' + fmt(rest, cd) + '</td><td>' + escapeHtml(formatISOtoFR(c.dueDate)) + '</td><td>' + badge + '</td></tr>';
+            });
+            const credits = detailCard('fa-hand-holding-dollar', 'Crédits', crows
+                ? '<div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Montant</th><th>Intérêt</th><th>Remboursé</th><th>Reste</th><th>Échéance</th><th>Statut</th></tr></thead><tbody>' + crows + '</tbody></table></div>'
+                : emptyP('Aucun crédit.'));
+            // 5. Cas sociaux
+            const gifts = (m.occ || []).slice().reverse();
+            const mine = (m.collectes || []).slice().reverse();
+            const social = detailCard('fa-hand-holding-heart', 'Cas sociaux',
+                kv('Cotisation hebdomadaire', fmt(socialWeekly, 'FC') + ' / semaine') +
+                kv('Semaines payées / dues', socialPaidWeeks(m) + ' / ' + socialDueWeeks(m)) +
+                kv('Total cotisé (hebdomadaire)', fmt(socialPaidTotal(m), 'FC')) +
+                kv('Situation', arrearsText(m)) +
+                kv('Aides reçues', fmt(socialAidTotal(m), 'FC')) +
+                '<h4 style="margin:12px 0 4px;font-size:0.9rem;">Cotisations occasionnelles versées</h4>' +
+                (gifts.length ? gifts.map(o => {
+                    const f = allCollectes().find(x => x.c.id === o.cid);
+                    return '<div class="kv"><span>' + escapeHtml(formatISOtoFR(o.date)) + ' · ' + escapeHtml(f ? f.c.title + ' → ' + f.b.name : 'cotisation supprimée') + '</span><span>' + fmt(o.amount, 'FC') + (o.source === 'epargne' ? ' <small>(épargne)</small>' : '') + '</span></div>';
+                }).join('') : emptyP('Aucune.')) +
+                (mine.length ? '<h4 style="margin:12px 0 4px;font-size:0.9rem;">Cotisations ouvertes pour ce membre</h4>' + mine.map(c =>
+                    '<div class="kv"><span>' + escapeHtml(formatISOtoFR(c.date)) + ' · ' + escapeHtml(c.title) + '</span><span>récolté ' + fmt(collecteCollected(c.id), 'FC') + ' · remis ' + fmt(c.remitted || 0, 'FC') + '</span></div>').join('') : ''));
+            // 6. Mouvements
+            let hrows = '';
+            (m.history || []).slice().reverse().forEach(h => {
+                const amt = Number(h.amount) || 0;
+                const shown = h.type === 'correction' ? (amt > 0 ? '+' : '−') + fmt(Math.abs(amt), devOf(h)) : fmt(amt, devOf(h));
+                hrows += '<tr><td>' + escapeHtml(formatISOtoFR(h.date)) + '</td><td>' + escapeHtml(OP_LABELS[h.type] || 'Opération') +
+                    (h.note ? '<br><small style="color:var(--text-muted);">' + escapeHtml(h.note) + '</small>' : '') + '</td><td>' + shown + '</td></tr>';
+            });
+            const moves = detailCard('fa-money-bill-transfer', 'Mouvements (' + (m.history || []).length + ')', hrows
+                ? '<div style="overflow-x:auto;max-height:420px;overflow-y:auto;"><table><thead><tr><th>Date</th><th>Opération</th><th>Montant</th></tr></thead><tbody>' + hrows + '</tbody></table></div>'
+                : emptyP('Aucun mouvement enregistré.'));
+            // 7. Réclamations et demandes
+            const cl = claims.filter(c => c.memberId === m.id).slice().reverse();
+            const claimsHtml = detailCard('fa-bell', 'Réclamations (' + cl.length + ')', cl.length ? cl.map(c =>
+                '<div class="claim-item ' + (c.status === 'traitée' ? 'done' : 'open') + '"><div class="claim-meta">' + escapeHtml(formatISOtoFR(c.date)) + ' · ' + escapeHtml(c.subject) + ' · ' +
+                (c.status === 'traitée' ? '<span class="badge badge-ok">Traitée</span>' : '<span class="badge badge-due">En attente</span>') + '</div>' +
+                '<div class="claim-msg">' + escapeHtml(c.message) + '</div>' +
+                (c.response ? '<div class="claim-reply"><strong>Réponse :</strong> ' + escapeHtml(c.response) + '</div>' : '') + '</div>').join('') : emptyP('Aucune réclamation.'));
+            const rq = requests.filter(r => r.memberId === m.id).slice().reverse();
+            const reqHtml = detailCard('fa-inbox', 'Demandes (' + rq.length + ')', rq.length ? rq.map(r =>
+                '<div class="claim-item ' + (r.status === 'en attente' ? 'open' : (r.status === 'approuvée' ? 'done' : '')) + '"><div class="claim-meta">' + escapeHtml(formatISOtoFR(r.date)) + ' · ' + escapeHtml(REQ_LABELS[r.type] || '') + ' · ' + (REQ_STATUS[r.status] || '') + '</div>' +
+                '<div class="claim-msg"><strong>' + fmt(r.amount, devOf(r)) + '</strong>' + (r.note ? ' — ' + escapeHtml(r.note) : '') + '</div>' +
+                (r.decision ? '<div class="claim-reply"><strong>Réponse :</strong> ' + escapeHtml(r.decision) + '</div>' : '') + '</div>').join('') : emptyP('Aucune demande.'));
+            box.innerHTML = head + '<div class="detail-grid">' + '<div>' + accounts + profile + social + '</div><div>' + credits + moves + claimsHtml + reqHtml + '</div></div>';
+            labelTables();
         }
 
         // ---------- Annonces de l'administrateur, lues par tous les membres ----------
@@ -2406,13 +2585,13 @@
             currentTab = name;
             syncHeaderHeight();
             labelTables();
-            ['dashboard', 'membres', 'operations', 'social', 'annonces', 'demandes', 'reclamations', 'equipe', 'journal'].forEach(t => {
+            ['dashboard', 'membres', 'membre', 'operations', 'social', 'annonces', 'demandes', 'reclamations', 'equipe', 'journal'].forEach(t => {
                 setHidden('panel-' + t, t !== name);
             });
             if (document.querySelectorAll) {
                 document.querySelectorAll('.dtab').forEach(b => {
                     if (typeof b.getAttribute !== 'function') return;
-                    if (b.getAttribute('data-tab') === name) b.classList.add('active'); else b.classList.remove('active');
+                    if (b.getAttribute('data-tab') === name || (name === 'membre' && b.getAttribute('data-tab') === 'membres')) b.classList.add('active'); else b.classList.remove('active');
                 });
             }
         }
@@ -2635,6 +2814,10 @@
             users = users.filter(x => !(x.role === 'member' && x.memberId === id));
             claims = claims.filter(c => c.memberId !== id);
             requests = requests.filter(r => r.memberId !== id);
+            delete memberProfiles[id];
+            if (!CLOUD) store.set('avec_mprofiles', memberProfiles);
+            else if (F()) F().removeMemberProfile(id).catch(() => {});
+            if (detailMemberId === id) closeMemberDetail();
             store.set('avec_members', members);
             store.set('avec_users', users);
             store.set('avec_claims', claims);
@@ -2912,6 +3095,7 @@
                 '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">Aucune opération enregistrée.</td></tr>';
 
             renderMemberSocial(m);
+            renderMemberProfile(m);
             renderAnnouncements();
             renderMemberLimits(m);
             renderMemberRequests(m.id);
