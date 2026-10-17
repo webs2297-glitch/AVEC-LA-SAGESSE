@@ -29,3 +29,5 @@ Application web de gestion d'une AVEC : épargne, crédits et remboursements des
 
 Tant que `firebase-config.js` n'est pas rempli, l'application fonctionne en **mode local** : les données restent dans le navigateur de l'appareil.
 Une fois Firebase configuré (voir `GUIDE-FIREBASE.md`), l'administrateur et les membres se connectent depuis n'importe quel appareil et voient les mêmes données en temps réel.
+
+- **WhatsApp** : boutons verts (fiche membre, liste, mouvements, annonces) qui ouvrent WhatsApp avec le message déjà écrit (situation, rappel de remboursement, confirmation d'opération, annonce). Vous appuyez sur « Envoyer » depuis votre propre WhatsApp ; les numéros locaux commençant par 0 sont convertis en +243.
