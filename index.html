@@ -104,7 +104,7 @@
         .bg-purple { background: #8b5cf6; }
         .bg-red { background: var(--danger); }
         .sync-status { position: fixed; right: 12px; bottom: 12px; padding: 6px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); z-index: 50; }
-        textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; resize: vertical; }
+        textarea { width: 100%; padding: 5px 9px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 7px; resize: vertical; }
         textarea:focus { outline: none; border-color: var(--primary); }
         .claim-item { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fff; }
         .claim-item.open { border-left: 4px solid var(--warning); }
@@ -139,19 +139,20 @@
         .grid-container { display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px; }
         @media (max-width: 900px) { .grid-container { grid-template-columns: 1fr; } }
 
-        .card { background: var(--surface); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 16px; }
-        .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-        .card-header i { color: var(--primary); font-size: 1.2rem; }
+        .card { background: var(--surface); border-radius: var(--radius); padding: 12px 16px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 16px; }
+        .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+        .card-header i { color: var(--primary); font-size: 1rem; }
+        .card-header h3 { font-size: 0.98rem; }
 
-        .form-group { margin-bottom: 11px; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+        .form-group { margin-bottom: 7px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
         .form-row.dev { grid-template-columns: 0.8fr 1.2fr; }
         .form-row > .form-group { min-width: 0; }
-        label { display: block; font-size: 0.82rem; font-weight: 500; margin-bottom: 4px; }
-        input, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; }
+        label { display: block; font-size: 0.76rem; font-weight: 500; margin-bottom: 2px; color: var(--text-muted); }
+        input, select { width: 100%; padding: 5px 9px; border: 1px solid var(--border); border-radius: 7px; font-size: 0.85rem; }
         input:focus, select:focus { outline: none; border-color: var(--primary); }
 
-        .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 7px; font-size: 0.86rem; border-radius: 7px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn:hover { background: var(--primary-dark); }
 
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 10px; }
@@ -176,7 +177,7 @@
         .badge-due { background: #fef3c7; color: #92400e; }
         .badge-late { background: var(--danger-light); color: #991b1b; }
 
-        .btn-small { border: 1px solid var(--border); background: #fff; color: var(--text-main); padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; margin-right: 4px; }
+        .btn-small { border: 1px solid var(--border); background: #fff; color: var(--text-main); padding: 3px 7px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; margin-right: 4px; }
         .btn-small:hover { background: #f1f5f9; }
         .btn-small.danger:hover { background: var(--danger-light); color: #991b1b; }
         .btn-export { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
@@ -187,7 +188,7 @@
         @media (max-width: 640px) {
             body { padding: 10px 10px 84px; }
             .grid-2 > *, .grid-container > * { min-width: 0; }
-            .card, .auth-container { padding: 14px; }
+            .card, .auth-container { padding: 11px 12px; }
             .auth-container { margin: 20px auto; }
             .dashboard-header { padding: 10px 14px; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
             .dashboard-header h2 { font-size: 1.05rem; }
@@ -210,10 +211,10 @@
             .stat-content .value { font-size: 1.05rem; word-break: break-word; }
             .value-fc { font-size: 0.9rem; }
             /* Formulaires faciles à toucher (16 px = pas de zoom automatique sur iPhone) */
-            input, select, textarea { font-size: 16px; padding: 11px; }
+            input, select, textarea { font-size: 16px; padding: 8px 10px; }
             .form-row:not(.dev) { grid-template-columns: 1fr; }
-            .btn { padding: 14px; font-size: 1rem; }
-            .btn-small { padding: 9px 12px; font-size: 0.85rem; margin: 2px 4px 2px 0; }
+            .btn { padding: 10px; font-size: 0.95rem; }
+            .btn-small { padding: 7px 10px; font-size: 0.82rem; margin: 2px 4px 2px 0; }
             /* Tableaux : chaque ligne devient une fiche */
             table, thead, tbody, tr, th, td { display: block; width: 100%; }
             thead { display: none; }
@@ -471,7 +472,7 @@
                                             <input type="number" id="memEpargneFC" min="0" step="1" value="0" placeholder="Ex: 50000">
                                         </div></div>
                                         <div class="form-group">
-                                            <label>Mot de passe par défaut du membre <small style="color:var(--text-muted);font-weight:400;">(le membre le changera à sa 1re connexion)</small></label>
+                                            <label>Mot de passe par défaut</label>
                                             <input type="text" id="memPassword" required minlength="6" maxlength="64" placeholder="6 caractères minimum" autocomplete="off">
                                         </div>
                                         <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le Membre</button>
@@ -2066,15 +2067,9 @@
                         else if (c.dueDate && c.dueDate < today) badge = '<span class="badge badge-late">En retard</span>';
                         else badge = '<span class="badge badge-due">En cours</span>';
 
-                        const cidAttr = escapeHtml(c.id);
-                        creditsListHtml += '<li style="margin-bottom:4px;">' + fmt(amount, cd) +
-                            ' (Intérêt: ' + fmt(interet, cd) + ') ' + badge +
+                        creditsListHtml += '<li style="margin-bottom:3px;">' + fmt(amount, cd) + ' ' + badge +
                             '<br><small style="color:var(--text-muted);">Reste : ' + fmt(restant, cd) +
-                            ' · Échéance : ' + escapeHtml(formatISOtoFR(c.dueDate)) + '</small> ' +
-                            '<button class="btn-small" onclick="correctRepaid(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Corriger le montant remboursé"><i class="fa-solid fa-pen-to-square"></i></button>' +
-                            (restant > 0 ? '<button class="btn-small" onclick="extendCredit(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Prolonger l\'échéance"><i class="fa-solid fa-calendar-plus"></i></button>' : '') +
-                            (canDelete(currentUser) ? '<button class="btn-small danger" onclick="deleteCredit(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Annuler ce crédit"><i class="fa-solid fa-xmark"></i></button>' : '') +
-                            '</li>';
+                            ' · Éch. ' + escapeHtml(formatISOtoFR(c.dueDate)) + '</small></li>';
                     });
                     creditsListHtml += '</ul>';
                 }
@@ -2092,11 +2087,7 @@
                     '<td><strong>' + fmt(epargne) + '</strong><br><span style="font-weight:600;color:var(--text-muted);">' + fmt(sav(m, 'FC'), 'FC') + '</span></td>' +
                     '<td>' + creditsListHtml + '</td>' +
                     '<td style="white-space:nowrap;">' +
-                        '<button class="btn-small" onclick="openMemberDetail(\'' + idAttr + '\')" title="Voir tous les détails du membre"><i class="fa-solid fa-eye"></i> Détails</button>' +
-                        '<button class="btn-small" onclick="editMember(\'' + idAttr + '\')" title="Modifier le nom / téléphone"><i class="fa-solid fa-pen"></i></button>' +
-                        '<button class="btn-small" onclick="correctEpargne(\'' + idAttr + '\', \'USD\')" title="Corriger l\'épargne en dollars"><i class="fa-solid fa-coins"></i> $</button>' +
-                        '<button class="btn-small" onclick="correctEpargne(\'' + idAttr + '\', \'FC\')" title="Corriger l\'épargne en francs congolais"><i class="fa-solid fa-coins"></i> FC</button>' +
-                        '<button class="btn-small" onclick="resetMemberPassword(\'' + idAttr + '\')" title="Définir / réinitialiser le mot de passe par défaut"><i class="fa-solid fa-key"></i></button>' +
+                        '<button class="btn-small" onclick="openMemberDetail(\'' + idAttr + '\')" title="Voir tous les détails du membre : modifier, corriger, mot de passe…"><i class="fa-solid fa-eye"></i> Détails</button>' +
                         (canDelete(currentUser) ? '<button class="btn-small danger" onclick="deleteMember(\'' + idAttr + '\')" title="Supprimer"><i class="fa-solid fa-trash"></i></button>' : '') +
                     '</td>' +
                     '</tr>';
@@ -2265,7 +2256,9 @@
                 const cd = devOf(c), rest = creditRemaining(c);
                 const badge = rest === 0 ? '<span class="badge badge-ok">Remboursé</span>' : (c.dueDate && c.dueDate < today ? '<span class="badge badge-late">En retard</span>' : '<span class="badge badge-due">En cours</span>');
                 crows += '<tr><td>' + escapeHtml(formatISOtoFR(c.date)) + '</td><td>' + fmt(c.amount, cd) + '</td><td>' + fmt(c.interet, cd) + '</td><td>' + fmt(c.repaid, cd) + '</td><td>' + fmt(rest, cd) + '</td><td>' + escapeHtml(formatISOtoFR(c.dueDate)) + ((c.extensions || []).length ? '<br><small style="color:var(--text-muted);">prolongée ' + c.extensions.length + ' fois</small>' : '') + '</td><td>' + badge + '</td>' +
-                    '<td>' + (rest > 0 ? '<button class="btn-small" onclick="extendCredit(\'' + id + '\', \'' + escapeHtml(c.id) + '\')"><i class="fa-solid fa-calendar-plus"></i> Prolonger</button>' : '') + '</td></tr>';
+                    '<td style="white-space:nowrap;"><button class="btn-small" onclick="correctRepaid(\'' + id + '\', \'' + escapeHtml(c.id) + '\')" title="Corriger le montant remboursé"><i class="fa-solid fa-pen-to-square"></i></button>' +
+                    (rest > 0 ? '<button class="btn-small" onclick="extendCredit(\'' + id + '\', \'' + escapeHtml(c.id) + '\')" title="Prolonger l\'échéance"><i class="fa-solid fa-calendar-plus"></i> Prolonger</button>' : '') +
+                    (canDelete(currentUser) ? '<button class="btn-small danger" onclick="deleteCredit(\'' + id + '\', \'' + escapeHtml(c.id) + '\')" title="Annuler ce crédit"><i class="fa-solid fa-xmark"></i></button>' : '') + '</td></tr>';
             });
             const credits = detailCard('fa-hand-holding-dollar', 'Crédits', crows
                 ? '<div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Montant</th><th>Intérêt</th><th>Remboursé</th><th>Reste</th><th>Échéance</th><th>Statut</th><th></th></tr></thead><tbody>' + crows + '</tbody></table></div>'
