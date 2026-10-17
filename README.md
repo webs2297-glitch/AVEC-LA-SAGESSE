@@ -10,6 +10,7 @@ Application web de gestion d'une AVEC : épargne, crédits et remboursements des
 - Deux devises : **dollars ($)** et **francs congolais (FC)**, chacune avec son épargne, ses crédits (plafond 3x, intérêt 10 %) et ses totaux. Aucune conversion n'est faite.
 - Le tableau de bord affiche l'**argent en caisse** en dollars et en francs (estimation : épargne + intérêts − crédits à rembourser ; en francs on ajoute le fonds cas sociaux).
 - **Cas sociaux** : chaque membre cotise 1 000 FC par semaine (semaines du lundi au dimanche, à partir de son inscription). L'onglet « Cas sociaux » enregistre les cotisations, signale les retards, et enregistre les aides versées (déduites du fonds).
+- **Cotisations occasionnelles** : l'admin ouvre une collecte pour un membre en difficulté, enregistre les versements de chacun (espèces ou prélevés sur l'épargne en FC), voit qui a versé ou non, et remet la somme au bénéficiaire.
 
 ## Fichiers
 
