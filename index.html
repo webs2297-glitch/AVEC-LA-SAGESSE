@@ -747,6 +747,29 @@
                     <div id="annAdminList"></div>
                 </section>
             </div>
+            <section class="card" style="margin-top:20px;">
+                <div class="card-header"><i class="fa-brands fa-whatsapp"></i><h3>Message de diffusion WhatsApp</h3></div>
+                <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:10px;">Écrivez un message, choisissez les membres, puis envoyez-le un par un : WhatsApp s'ouvre à chaque fois avec le bon numéro et le message prêt. <strong>{prénom}</strong> est remplacé par le prénom du membre.</p>
+                <div class="detail-grid">
+                    <div>
+                        <div class="form-group"><label>Message</label>
+                            <textarea id="waBcText" rows="6" maxlength="1000" placeholder="Bonjour {prénom}, réunion samedi à 10 h. — AVEC LA SAGESSE" oninput="renderBroadcast()"></textarea></div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <button type="button" class="btn-small wa" onclick="waBroadcastNext()"><i class="fa-brands fa-whatsapp"></i> Envoyer au suivant</button>
+                            <button type="button" class="btn-small" onclick="waCopyNumbers()"><i class="fa-solid fa-copy"></i> Copier les numéros</button>
+                            <button type="button" class="btn-small" onclick="waBroadcastReset()"><i class="fa-solid fa-rotate-left"></i> Recommencer</button>
+                        </div>
+                        <div id="waBcStatus" style="font-size:0.85rem;margin-top:8px;color:var(--text-muted);"></div>
+                    </div>
+                    <div>
+                        <div style="display:flex;gap:6px;margin-bottom:6px;">
+                            <button type="button" class="btn-small" onclick="waBroadcastSelect(true)">Tout cocher</button>
+                            <button type="button" class="btn-small" onclick="waBroadcastSelect(false)">Tout décocher</button>
+                        </div>
+                        <div id="waBcList" style="max-height:340px;overflow-y:auto;"></div>
+                    </div>
+                </div>
+            </section>
         </div>
 
         <div class="dpanel hidden" id="panel-demandes">
@@ -2428,7 +2451,54 @@
                     (canDelete(currentUser) ? '<div style="margin-top:6px;"><button class="btn-small danger" onclick="deleteAnnouncement(\'' + escapeHtml(a.id) + '\')"><i class="fa-solid fa-trash"></i> Supprimer</button></div>' : '') : '') +
                 '</div>';
         }
+        // ---------- Diffusion WhatsApp à tous les membres ----------
+        let waBcOff = {}, waBcSent = {};
+        function waBcMembers() { return members.filter(m => waNumber(m.phone)); }
+        function waBcText(m) {
+            const t = (document.getElementById('waBcText') || {}).value || '';
+            return t.replace(/\{pr[ée]nom\}/gi, String(m.name || '').split(' ')[0]);
+        }
+        function renderBroadcast() {
+            const box = document.getElementById('waBcList');
+            if (!box) return;
+            const all = waBcMembers();
+            const noPhone = members.length - all.length;
+            box.innerHTML = all.map(m => {
+                const id = escapeHtml(m.id);
+                return '<div class="kv" style="align-items:center;"><label style="display:flex;align-items:center;gap:8px;font-weight:500;cursor:pointer;"><input type="checkbox" style="width:auto;" ' + (waBcOff[m.id] ? '' : 'checked') + ' onchange="waBroadcastToggle(\'' + id + '\', this.checked)"> ' + escapeHtml(m.name) + '</label>' +
+                    '<span>' + (waBcSent[m.id] ? '<span class="badge badge-ok">Envoyé</span> ' : '') + '<button type="button" class="btn-small wa" onclick="waBroadcastOne(\'' + id + '\')" title="Envoyer à ce membre"><i class="fa-brands fa-whatsapp"></i></button></span></div>';
+            }).join('') || '<p style="color:var(--text-muted);font-size:0.88rem;">Aucun membre avec un numéro de téléphone.</p>';
+            const sel = all.filter(m => !waBcOff[m.id]);
+            const done = sel.filter(m => waBcSent[m.id]).length;
+            const st = document.getElementById('waBcStatus');
+            if (st) st.textContent = sel.length + ' membre(s) choisi(s) · ' + done + ' envoyé(s) · ' + (sel.length - done) + ' restant(s)' + (noPhone ? ' · ' + noPhone + ' sans numéro (ignoré(s))' : '');
+        }
+        function waBroadcastToggle(id, on) { if (on) delete waBcOff[id]; else waBcOff[id] = true; renderBroadcast(); }
+        function waBroadcastSelect(on) { waBcOff = {}; if (!on) waBcMembers().forEach(m => { waBcOff[m.id] = true; }); renderBroadcast(); }
+        function waBroadcastReset() { waBcSent = {}; renderBroadcast(); }
+        function waBroadcastOne(id) {
+            const m = members.find(x => x.id === id);
+            const t = document.getElementById('waBcText');
+            if (!m) return;
+            if (!t || !t.value.trim()) { alert('Écrivez d\'abord le message à diffuser.'); return; }
+            waOpen(waNumber(m.phone), waBcText(m));
+            waBcSent[m.id] = true;
+            renderBroadcast();
+        }
+        function waBroadcastNext() {
+            const next = waBcMembers().find(m => !waBcOff[m.id] && !waBcSent[m.id]);
+            if (!next) { alert('Tous les membres choisis ont reçu le message. Cliquez sur « Recommencer » pour renvoyer.'); return; }
+            waBroadcastOne(next.id);
+        }
+        function waCopyNumbers() {
+            const nums = waBcMembers().filter(m => !waBcOff[m.id]).map(m => '+' + waNumber(m.phone)).join('\n');
+            if (!nums) { alert('Aucun numéro à copier.'); return; }
+            const done = () => alert('Numéros copiés. Vous pouvez les utiliser pour créer un groupe ou une liste de diffusion dans WhatsApp.');
+            try { navigator.clipboard.writeText(nums).then(done, () => prompt('Copiez les numéros :', nums.replace(/\n/g, ', '))); }
+            catch (e) { prompt('Copiez les numéros :', nums.replace(/\n/g, ', ')); }
+        }
         function renderAnnouncements() {
+            try { renderBroadcast(); } catch (e) {}
             const list = annSorted();
             const admin = document.getElementById('annAdminList');
             if (admin) admin.innerHTML = list.length ? list.map(a => annHtml(a, true)).join('') :

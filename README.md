@@ -31,3 +31,4 @@ Tant que `firebase-config.js` n'est pas rempli, l'application fonctionne en **mo
 Une fois Firebase configuré (voir `GUIDE-FIREBASE.md`), l'administrateur et les membres se connectent depuis n'importe quel appareil et voient les mêmes données en temps réel.
 
 - **WhatsApp** : boutons verts (fiche membre, liste, mouvements, annonces) qui ouvrent WhatsApp avec le message déjà écrit (situation, rappel de remboursement, confirmation d'opération, annonce). Vous appuyez sur « Envoyer » depuis votre propre WhatsApp ; les numéros locaux commençant par 0 sont convertis en +243.
+- **Diffusion WhatsApp** (onglet Annonces) : un message pour tous les membres qui ont un numéro, envoyé un par un avec « Envoyer au suivant » ({prénom} est remplacé), ou « Copier les numéros » pour créer un groupe.
