@@ -104,7 +104,7 @@
         .bg-purple { background: #8b5cf6; }
         .bg-red { background: var(--danger); }
         .sync-status { position: fixed; right: 12px; bottom: 12px; padding: 6px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow); z-index: 50; }
-        textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; resize: vertical; }
+        textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; resize: vertical; }
         textarea:focus { outline: none; border-color: var(--primary); }
         .claim-item { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fff; }
         .claim-item.open { border-left: 4px solid var(--warning); }
@@ -139,16 +139,19 @@
         .grid-container { display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px; }
         @media (max-width: 900px) { .grid-container { grid-template-columns: 1fr; } }
 
-        .card { background: var(--surface); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 24px; }
-        .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        .card { background: var(--surface); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 16px; }
+        .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
         .card-header i { color: var(--primary); font-size: 1.2rem; }
 
-        .form-group { margin-bottom: 16px; }
-        label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 6px; }
-        input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; }
+        .form-group { margin-bottom: 11px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+        .form-row.dev { grid-template-columns: 0.8fr 1.2fr; }
+        .form-row > .form-group { min-width: 0; }
+        label { display: block; font-size: 0.82rem; font-weight: 500; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; }
         input:focus, select:focus { outline: none; border-color: var(--primary); }
 
-        .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 11px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn:hover { background: var(--primary-dark); }
 
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 10px; }
@@ -207,7 +210,8 @@
             .stat-content .value { font-size: 1.05rem; word-break: break-word; }
             .value-fc { font-size: 0.9rem; }
             /* Formulaires faciles à toucher (16 px = pas de zoom automatique sur iPhone) */
-            input, select, textarea { font-size: 16px; padding: 12px; }
+            input, select, textarea { font-size: 16px; padding: 11px; }
+            .form-row:not(.dev) { grid-template-columns: 1fr; }
             .btn { padding: 14px; font-size: 1rem; }
             .btn-small { padding: 9px 12px; font-size: 0.85rem; margin: 2px 4px 2px 0; }
             /* Tableaux : chaque ligne devient une fiche */
@@ -220,6 +224,19 @@
             td:not([data-label])::before { display: none; }
             td[colspan] { text-align: center; }
         }
+        .modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100; }
+        .modal-box { background: #fff; border-radius: 14px; padding: 18px; width: 100%; max-width: 340px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25); }
+        .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; text-transform: capitalize; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; text-align: center; }
+        .cal-dow { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); padding: 4px 0; }
+        .cal-day { border: none; background: #f8fafc; border-radius: 8px; padding: 8px 0; font-size: 0.88rem; cursor: pointer; color: var(--text-main); }
+        .cal-day:hover:not(:disabled) { background: #dbeafe; }
+        .cal-day:disabled { background: none; color: #cbd5e1; cursor: default; }
+        .cal-day.old { outline: 2px dashed var(--warning); }
+        .cal-day.sel { background: var(--primary); color: #fff; font-weight: 700; }
+        .cal-actions { display: flex; gap: 8px; align-items: center; }
+        .cal-actions .btn { flex: 1; }
+        .cal-actions .btn:disabled { background: #cbd5e1; cursor: default; }
     </style>
 </head>
 <body>
@@ -437,22 +454,22 @@
                                         <h3>Nouveau Membre</h3>
                                     </div>
                                     <form onsubmit="handleAddMember(event)">
-                                        <div class="form-group">
+                                        <div class="form-row"><div class="form-group">
                                             <label>Nom &amp; Post-nom du Membre</label>
                                             <input type="text" id="memName" required maxlength="80" placeholder="Ex: Bahati Alain">
                                         </div>
                                         <div class="form-group">
                                             <label>Téléphone</label>
                                             <input type="text" id="memPhone" maxlength="25" placeholder="+243 ...">
-                                        </div>
-                                        <div class="form-group">
+                                        </div></div>
+                                        <div class="form-row"><div class="form-group">
                                             <label>Épargne Initiale en dollars ($)</label>
                                             <input type="number" id="memEpargne" required min="0" step="0.01" placeholder="Ex: 100">
                                         </div>
                                         <div class="form-group">
                                             <label>Épargne Initiale en francs congolais (FC)</label>
                                             <input type="number" id="memEpargneFC" min="0" step="1" value="0" placeholder="Ex: 50000">
-                                        </div>
+                                        </div></div>
                                         <div class="form-group">
                                             <label>Mot de passe par défaut du membre <small style="color:var(--text-muted);font-weight:400;">(le membre le changera à sa 1re connexion)</small></label>
                                             <input type="text" id="memPassword" required minlength="6" maxlength="64" placeholder="6 caractères minimum" autocomplete="off">
@@ -516,14 +533,14 @@
                                             </select>
                                         </div>
                                         <div id="memberInfoHint" class="member-details-box hidden"></div>
-                                        <div class="form-group" style="margin-top: 12px;">
+                                        <div class="form-row dev"><div class="form-group">
                                             <label>Devise</label>
                                             <select id="creditDevise"><option value="USD">Dollars ($)</option><option value="FC">Francs congolais (FC)</option></select>
                                         </div>
                                         <div class="form-group">
                                             <label>Montant du Crédit Demandé</label>
                                             <input type="number" id="calcCreditAmount" required min="0.01" step="0.01" placeholder="Ex: 150">
-                                        </div>
+                                        </div></div>
                                         <button type="submit" class="btn"><i class="fa-solid fa-hand-holding-dollar"></i> Valider et Octroyer</button>
                                     </form>
                                     <div id="creditResultBox" class="alert hidden"></div>
@@ -540,14 +557,14 @@
                                                 <option value="">-- Choisir un membre --</option>
                                             </select>
                                         </div>
-                                        <div class="form-group">
+                                        <div class="form-row dev"><div class="form-group">
                                             <label>Devise</label>
                                             <select id="depositDevise"><option value="USD">Dollars ($)</option><option value="FC">Francs congolais (FC)</option></select>
                                         </div>
                                         <div class="form-group">
                                             <label>Montant versé</label>
                                             <input type="number" id="depositAmount" required min="0.01" step="0.01" placeholder="Ex: 50">
-                                        </div>
+                                        </div></div>
                                         <button type="submit" class="btn"><i class="fa-solid fa-plus"></i> Enregistrer le Versement</button>
                                     </form>
                                     <div id="depositResultBox" class="alert hidden"></div>
@@ -595,10 +612,10 @@
                     <section class="card">
                         <div class="card-header"><i class="fa-solid fa-coins"></i><h3>Encaisser la cotisation hebdomadaire (<span id="socWeeklyLabel">1 000 FC</span> / semaine)</h3></div>
                         <form onsubmit="handleSocialForm(event)">
-                            <div class="form-group"><label>Membre</label>
+                            <div class="form-row"><div class="form-group"><label>Membre</label>
                                 <select id="socialMemberSelect" required><option value="">-- Choisir un membre --</option></select></div>
                             <div class="form-group"><label>Nombre de semaines payées</label>
-                                <input type="number" id="socialWeeks" required min="1" max="520" step="1" value="1"></div>
+                                <input type="number" id="socialWeeks" required min="1" max="520" step="1" value="1"></div></div>
                             <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer la cotisation</button>
                         </form>
                     </section>
@@ -616,10 +633,10 @@
                         <form onsubmit="handleSocialAid(event)">
                             <div class="form-group"><label>Membre aidé</label>
                                 <select id="aideMemberSelect" required><option value="">-- Choisir un membre --</option></select></div>
-                            <div class="form-group"><label>Montant (FC)</label>
+                            <div class="form-row"><div class="form-group"><label>Montant (FC)</label>
                                 <input type="number" id="aideAmount" required min="1" step="1" placeholder="Ex: 20000"></div>
                             <div class="form-group"><label>Motif <small style="color:var(--text-muted);font-weight:400;">(facultatif)</small></label>
-                                <input type="text" id="aideReason" maxlength="120" placeholder="Ex: deuil, maladie..."></div>
+                                <input type="text" id="aideReason" maxlength="120" placeholder="Ex: deuil, maladie..."></div></div>
                             <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer l'aide</button>
                         </form>
                         <div id="socialResultBox" class="alert hidden"></div>
@@ -911,14 +928,14 @@
                                     <option value="retrait">Retrait d'épargne</option>
                                 </select>
                             </div>
-                            <div class="form-group">
+                            <div class="form-row dev"><div class="form-group">
                                 <label>Devise</label>
                                 <select id="reqDevise"><option value="USD">Dollars ($)</option><option value="FC">Francs congolais (FC)</option></select>
                             </div>
                             <div class="form-group">
                                 <label>Montant</label>
                                 <input type="number" id="reqAmount" required min="0.01" max="100000000" step="0.01" placeholder="Ex: 100">
-                            </div>
+                            </div></div>
                             <div class="form-group">
                                 <label>Motif <small style="color:var(--text-muted);font-weight:400;">(facultatif)</small></label>
                                 <textarea id="reqNote" maxlength="300" rows="2" placeholder="Ex: frais de scolarité, achat de marchandises..."></textarea>
@@ -996,6 +1013,25 @@
             </form>
             <div id="pwdResultBox" class="alert hidden"></div>
         </section>
+    </div>
+
+    <div id="calModal" class="modal hidden" onclick="if (event.target === this) closeCalendar()">
+        <div class="modal-box">
+            <h3 id="calTitle"></h3>
+            <p id="calInfo" style="font-size:0.88rem;color:var(--text-muted);margin:6px 0 10px;"></p>
+            <div class="cal-head">
+                <button type="button" class="btn-small" onclick="calMove(-1)" aria-label="Mois précédent">&lsaquo;</button>
+                <strong id="calMonth"></strong>
+                <button type="button" class="btn-small" onclick="calMove(1)" aria-label="Mois suivant">&rsaquo;</button>
+            </div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div id="calQuick" style="margin-top:8px;"></div>
+            <p id="calChoice" style="font-size:0.88rem;margin:10px 0 8px;font-weight:600;"></p>
+            <div class="cal-actions">
+                <button type="button" class="btn-small" onclick="closeCalendar()">Annuler</button>
+                <button type="button" class="btn" id="calOk" onclick="calConfirm()" disabled>Choisir une date</button>
+            </div>
+        </div>
     </div>
 
     <script src="firebase-config.js"></script>
@@ -1836,26 +1872,34 @@
             displayMemberCreditInfo();
         }
 
-        // Repousse la date d'échéance d'un crédit non soldé : en nombre de mois, ou en saisissant directement la nouvelle date
+        // Prolongation : un calendrier s'ouvre, on choisit la nouvelle date d'échéance
         function extendCredit(memberId, creditId) {
             if (!requireAdmin()) return;
             const m = members.find(x => x.id === memberId);
             const c = m && (m.credits || []).find(x => x.id === creditId);
             if (!c) return;
-            const cd = devOf(c);
             if (creditRemaining(c) === 0) { alert('Ce crédit est déjà remboursé : il n\'y a rien à prolonger.'); return; }
             const old = c.dueDate || todayISO();
-            const v = prompt('Échéance actuelle : ' + formatISOtoFR(old) + '.\n\nProlonger de combien de MOIS (1 à 24) ?\nOu tapez directement la nouvelle date (AAAA-MM-JJ).', '1');
-            if (v === null) return;
-            const t = String(v).trim();
-            let neu;
-            if (/^\d{1,2}$/.test(t) && Number(t) >= 1 && Number(t) <= 24) {
-                const p = old.split('-').map(Number);
-                neu = addMonthsISO(new Date(p[0], p[1] - 1, p[2]), Number(t));
-            } else if (/^\d{4}-\d{2}-\d{2}$/.test(t) && !isNaN(new Date(t + 'T00:00:00'))) {
-                neu = t;
-            } else { alert('Saisie invalide. Exemple : 2 (deux mois) ou 2026-12-31.'); return; }
-            if (neu <= old) { alert('La nouvelle échéance doit être après le ' + formatISOtoFR(old) + '.'); return; }
+            openCalendar({
+                title: 'Prolonger l\'échéance',
+                info: escapeHtml(m.name) + ' · crédit de ' + fmt(c.amount, devOf(c)) + ' · reste ' + fmt(creditRemaining(c), devOf(c)) +
+                    '<br>Échéance actuelle : <strong>' + escapeHtml(formatISOtoFR(old)) + '</strong>',
+                min: addDaysISO(old, 1),
+                base: old,
+                okLabel: 'Prolonger jusqu\'au ',
+                onPick: d => applyExtension(memberId, creditId, d)
+            });
+        }
+        function applyExtension(memberId, creditId, neu) {
+            if (!requireAdmin()) return false;
+            const m = members.find(x => x.id === memberId);
+            const c = m && (m.credits || []).find(x => x.id === creditId);
+            if (!c) return false;
+            const cd = devOf(c);
+            if (creditRemaining(c) === 0) { alert('Ce crédit est déjà remboursé : il n\'y a rien à prolonger.'); return false; }
+            const old = c.dueDate || todayISO();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(String(neu)) || isNaN(new Date(neu + 'T00:00:00'))) { alert('Date invalide.'); return false; }
+            if (neu <= old) { alert('La nouvelle échéance doit être après le ' + formatISOtoFR(old) + '.'); return false; }
             if (!Array.isArray(c.extensions)) c.extensions = [];
             c.extensions.push({ date: todayISO(), from: old, to: neu });
             if (c.extensions.length > 20) c.extensions = c.extensions.slice(-20);
@@ -1864,6 +1908,66 @@
             store.set('avec_members', members);
             updateDashboard();
             displayMemberCreditInfo();
+            return true;
+        }
+
+        // ----- Petit calendrier (fenêtre) pour choisir une date -----
+        function addDaysISO(iso, n) {
+            const p = iso.split('-').map(Number);
+            const d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n));
+            return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+        }
+        let cal = null;
+        const MONTHS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+        function openCalendar(opt) {
+            const p = opt.min.split('-').map(Number);
+            cal = { y: p[0], m: p[1] - 1, min: opt.min, base: opt.base, sel: null, onPick: opt.onPick, okLabel: opt.okLabel };
+            document.getElementById('calTitle').textContent = opt.title;
+            document.getElementById('calInfo').innerHTML = opt.info;
+            document.getElementById('calQuick').innerHTML = [1, 2, 3, 6].map(n =>
+                '<button type="button" class="btn-small" onclick="calQuick(' + n + ')">+ ' + n + ' mois</button>').join('');
+            setHidden('calModal', false);
+            renderCalendar();
+        }
+        function closeCalendar() { cal = null; setHidden('calModal', true); }
+        function calMove(d) {
+            if (!cal) return;
+            cal.m += d;
+            if (cal.m < 0) { cal.m = 11; cal.y--; } else if (cal.m > 11) { cal.m = 0; cal.y++; }
+            renderCalendar();
+        }
+        function calPick(iso) { if (!cal || iso < cal.min) return; cal.sel = iso; renderCalendar(); }
+        function calQuick(n) {
+            if (!cal) return;
+            const p = cal.base.split('-').map(Number);
+            const iso = addMonthsISO(new Date(p[0], p[1] - 1, p[2]), n);
+            const q = iso.split('-').map(Number);
+            cal.y = q[0]; cal.m = q[1] - 1;
+            calPick(iso);
+        }
+        function calConfirm() {
+            if (!cal || !cal.sel) return;
+            const cb = cal.onPick, d = cal.sel;
+            closeCalendar();
+            cb(d);
+        }
+        function renderCalendar() {
+            if (!cal) return;
+            document.getElementById('calMonth').textContent = MONTHS_FR[cal.m] + ' ' + cal.y;
+            const first = (new Date(cal.y, cal.m, 1).getDay() + 6) % 7; // semaine commençant le lundi
+            const days = new Date(cal.y, cal.m + 1, 0).getDate();
+            let h = ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => '<span class="cal-dow">' + x + '</span>').join('');
+            for (let i = 0; i < first; i++) h += '<span></span>';
+            for (let d = 1; d <= days; d++) {
+                const iso = cal.y + '-' + String(cal.m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                const off = iso < cal.min;
+                h += '<button type="button" class="cal-day' + (iso === cal.sel ? ' sel' : '') + (iso === cal.base ? ' old' : '') + '"' + (off ? ' disabled' : ' onclick="calPick(\'' + iso + '\')"') + '>' + d + '</button>';
+            }
+            document.getElementById('calGrid').innerHTML = h;
+            document.getElementById('calChoice').textContent = cal.sel ? 'Nouvelle date : ' + formatISOtoFR(cal.sel) : 'Choisissez une date dans le calendrier.';
+            const ok = document.getElementById('calOk');
+            ok.disabled = !cal.sel;
+            ok.textContent = cal.sel ? cal.okLabel + formatISOtoFR(cal.sel) : 'Choisir une date';
         }
 
         function deleteCredit(memberId, creditId) {
