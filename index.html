@@ -51,9 +51,10 @@
         .dashboard-header {
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             color: white;
-            padding: 20px 28px;
-            border-radius: var(--radius);
-            margin-bottom: 20px;
+            padding: 7px 16px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            gap: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -62,9 +63,11 @@
             z-index: 50;
             box-shadow: 0 6px 12px -6px rgba(15, 23, 42, 0.35);
         }
-        .user-info { display: flex; align-items: center; gap: 12px; }
-        .lock-select { background: #334155; color: #fff; border: none; padding: 7px 8px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; max-width: 170px; }
-        .btn-logout { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+        .user-info { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; white-space: nowrap; }
+        .dashboard-header h2 { font-size: 1.05rem; margin: 0; white-space: nowrap; }
+        .dashboard-header p { display: none; }
+        .lock-select { background: #334155; color: #fff; border: none; padding: 4px 6px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; max-width: 110px; }
+        .btn-logout { background: #334155; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
         .btn-logout:hover { background: var(--danger); }
 
         /* CARTES DE STATISTIQUES (CAISSE GLOBALE) */
@@ -180,9 +183,9 @@
         .btn-small { border: 1px solid var(--border); background: #fff; color: var(--text-main); padding: 3px 7px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; margin-right: 4px; }
         .btn-small:hover { background: #f1f5f9; }
         .btn-small.danger:hover { background: var(--danger-light); color: #991b1b; }
-        .btn-export { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+        .btn-export { background: #334155; color: white; border: none; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
         .btn-export:hover { background: var(--primary); }
-        .header-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .header-actions { display: flex; align-items: center; gap: 8px; }
 
         /* ===== TÉLÉPHONE : une présentation différente de l'ordinateur ===== */
         @media (max-width: 640px) {
@@ -190,11 +193,16 @@
             .grid-2 > *, .grid-container > * { min-width: 0; }
             .card, .auth-container { padding: 11px 12px; }
             .auth-container { margin: 20px auto; }
-            .dashboard-header { padding: 10px 14px; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-            .dashboard-header h2 { font-size: 1.05rem; }
-            .dashboard-header p { display: none; }
-            .header-actions { gap: 8px; width: 100%; justify-content: space-between; }
-            .user-info { gap: 8px; }
+            .dashboard-header { padding: 6px 10px; gap: 6px; flex-wrap: nowrap; margin-bottom: 8px; }
+            .dashboard-header h2 { font-size: 0.95rem; }
+            .dashboard-header h2 i { display: none; }
+            .header-actions { gap: 6px; margin-left: auto; }
+            .btn-export { font-size: 0; padding: 6px 9px; }
+            .btn-export i { font-size: 0.85rem; }
+            .user-info { gap: 6px; }
+            .user-info span { max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
+            .user-info span i { display: none; }
+            .lock-select { max-width: 84px; padding: 4px 2px; }
             /* Navigation en bas de l'écran, comme une application */
             .dtabs { position: fixed; left: 0; right: 0; bottom: 0; top: auto; margin: 0; padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0;
                      background: #fff; border-top: 1px solid var(--border); border-bottom: none; box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.08); z-index: 60; justify-content: space-between; }
@@ -296,10 +304,10 @@
                 <button class="btn-export" onclick="exportCSV()" title="Télécharger le rapport (Excel/CSV)"><i class="fa-solid fa-file-arrow-down"></i> Exporter</button>
                 <div class="user-info">
                     <select id="lockSelAdmin" class="lock-select" onchange="setAutoLock(this.value)" title="Verrouillage automatique : vous êtes déconnecté après ce temps sans utiliser l'application">
-                        <option value="0">Verrouillage : désactivé</option>
-                        <option value="5">Verrouillage : 5 min</option>
-                        <option value="30">Verrouillage : 30 min</option>
-                        <option value="60">Verrouillage : 1 h</option>
+                        <option value="0">🔒 Aucun</option>
+                        <option value="5">🔒 5 min</option>
+                        <option value="30">🔒 30 min</option>
+                        <option value="60">🔒 1 h</option>
                     </select>
                     <span><i class="fa-solid fa-circle-user"></i> <strong id="currentUserDisplay">Utilisateur</strong></span>
                     <button class="btn-logout" onclick="logout()" title="Se déconnecter"><i class="fa-solid fa-power-off"></i></button>
@@ -810,10 +818,10 @@
             </div>
             <div class="user-info">
                 <select id="lockSelMember" class="lock-select" onchange="setAutoLock(this.value)" title="Verrouillage automatique : vous êtes déconnecté après ce temps sans utiliser l'application">
-                        <option value="0">Verrouillage : désactivé</option>
-                        <option value="5">Verrouillage : 5 min</option>
-                        <option value="30">Verrouillage : 30 min</option>
-                        <option value="60">Verrouillage : 1 h</option>
+                        <option value="0">🔒 Aucun</option>
+                        <option value="5">🔒 5 min</option>
+                        <option value="30">🔒 30 min</option>
+                        <option value="60">🔒 1 h</option>
                     </select>
                     <span><i class="fa-solid fa-circle-user"></i> <strong id="memberUserDisplay">Membre</strong></span>
                 <button class="btn-logout" onclick="logout()" title="Se déconnecter"><i class="fa-solid fa-power-off"></i></button>
