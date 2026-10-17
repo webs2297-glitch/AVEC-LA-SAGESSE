@@ -62,14 +62,6 @@
             z-index: 50;
             box-shadow: 0 6px 12px -6px rgba(15, 23, 42, 0.35);
         }
-        @media (max-width: 640px) {
-            body { padding: 12px; }
-            .dashboard-header { padding: 10px 14px; gap: 8px; flex-wrap: wrap; }
-            .dashboard-header h2 { font-size: 1.05rem; }
-            .dashboard-header p { display: none; }
-            .header-actions { gap: 8px; }
-            .dtabs { padding-top: 6px; }
-        }
         .user-info { display: flex; align-items: center; gap: 12px; }
         .lock-select { background: #334155; color: #fff; border: none; padding: 7px 8px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; max-width: 170px; }
         .btn-logout { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
@@ -179,6 +171,47 @@
         .btn-export { background: #334155; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
         .btn-export:hover { background: var(--primary); }
         .header-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+        /* ===== TÉLÉPHONE : une présentation différente de l'ordinateur ===== */
+        @media (max-width: 640px) {
+            body { padding: 10px 10px 84px; }
+            .grid-2 > *, .grid-container > * { min-width: 0; }
+            .card, .auth-container { padding: 14px; }
+            .auth-container { margin: 20px auto; }
+            .dashboard-header { padding: 10px 14px; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+            .dashboard-header h2 { font-size: 1.05rem; }
+            .dashboard-header p { display: none; }
+            .header-actions { gap: 8px; width: 100%; justify-content: space-between; }
+            .user-info { gap: 8px; }
+            /* Navigation en bas de l'écran, comme une application */
+            .dtabs { position: fixed; left: 0; right: 0; bottom: 0; top: auto; margin: 0; padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 0;
+                     background: #fff; border-top: 1px solid var(--border); border-bottom: none; box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.08); z-index: 60; justify-content: space-between; }
+            .dtab { flex: 1 0 64px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px; font-size: 0.62rem; border-bottom: none; border-top: 2px solid transparent; position: relative; }
+            .dtab i { font-size: 1.15rem; }
+            .dtab.active { border-top-color: var(--primary); }
+            .dtab .tab-badge { position: absolute; top: 0; right: 10px; margin: 0; min-width: 16px; padding: 0 4px; font-size: 0.65rem; }
+            .sync-status { bottom: 70px; right: 8px; font-size: 0.68rem; padding: 4px 9px; }
+            /* Chiffres : deux par ligne, compacts */
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .stat-card { padding: 12px; gap: 10px; flex-direction: column; align-items: flex-start; }
+            .stat-icon { width: 34px; height: 34px; font-size: 1rem; border-radius: 8px; }
+            .stat-content .label { font-size: 0.68rem; }
+            .stat-content .value { font-size: 1.05rem; word-break: break-word; }
+            .value-fc { font-size: 0.9rem; }
+            /* Formulaires faciles à toucher (16 px = pas de zoom automatique sur iPhone) */
+            input, select, textarea { font-size: 16px; padding: 12px; }
+            .btn { padding: 14px; font-size: 1rem; }
+            .btn-small { padding: 9px 12px; font-size: 0.85rem; margin: 2px 4px 2px 0; }
+            /* Tableaux : chaque ligne devient une fiche */
+            table, thead, tbody, tr, th, td { display: block; width: 100%; }
+            thead { display: none; }
+            tr { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; background: #fff; }
+            td { display: block; border: none; border-bottom: 1px dashed var(--border); padding: 7px 0; text-align: left; word-break: break-word; }
+            td:last-child { border-bottom: none; }
+            td::before { content: attr(data-label); display: block; font-weight: 600; color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 2px; }
+            td:not([data-label])::before { display: none; }
+            td[colspan] { text-align: center; }
+        }
     </style>
 </head>
 <body>
@@ -1900,6 +1933,7 @@
 
             renderAdminRequests();
             renderAdminClaims();
+            labelTables();
             renderAdminHome();
         }
 
@@ -2194,6 +2228,19 @@
         // ---------- Équipe & postes (administrateur / accès total) ----------
         // Onglets du tableau de bord
         let currentTab = 'dashboard';
+        // Téléphone : donne à chaque cellule le nom de sa colonne (affiché dans la fiche)
+        function labelTables() {
+            try {
+                document.querySelectorAll('table').forEach(t => {
+                    const heads = Array.prototype.map.call(t.querySelectorAll('thead th'), th => th.textContent.trim());
+                    t.querySelectorAll('tbody tr').forEach(tr => {
+                        Array.prototype.forEach.call(tr.children, (td, i) => {
+                            if (heads[i] && !td.hasAttribute('colspan')) td.setAttribute('data-label', heads[i]);
+                        });
+                    });
+                });
+            } catch (e) {}
+        }
         // L'entête reste visible quand on fait défiler : les onglets se collent juste dessous
         function syncHeaderHeight() {
             try {
@@ -2210,6 +2257,7 @@
             if ((name === 'equipe' || name === 'journal') && (!CLOUD || !currentUser || currentUser.level !== 'total')) name = 'dashboard';
             currentTab = name;
             syncHeaderHeight();
+            labelTables();
             ['dashboard', 'membres', 'operations', 'social', 'demandes', 'reclamations', 'equipe', 'journal'].forEach(t => {
                 setHidden('panel-' + t, t !== name);
             });
@@ -2719,6 +2767,7 @@
             renderMemberLimits(m);
             renderMemberRequests(m.id);
             renderMemberClaims(m.id);
+            labelTables();
         }
 
         // ---------- Demandes de crédit / retrait ----------
