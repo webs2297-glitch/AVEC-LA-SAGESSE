@@ -41,9 +41,12 @@ service cloud.firestore {
     function isStaff() {
       return isAdmin() || (verified() && exists(staffPath()) && staffLevel() == 'poste');
     }
-    // Un poste ne peut pas faire disparaître des crédits ni des lignes d'historique d'une fiche
+    // Un poste ne peut pas faire disparaître des crédits, des cotisations / aides « cas sociaux »
+    // ni des lignes d'historique d'une fiche
     function nothingRemoved() {
       return request.resource.data.get('credits', []).size() >= resource.data.get('credits', []).size()
+        && request.resource.data.get('social', []).size() >= resource.data.get('social', []).size()
+        && request.resource.data.get('socialAid', []).size() >= resource.data.get('socialAid', []).size()
         && (request.resource.data.get('history', []).size() >= resource.data.get('history', []).size()
             || resource.data.get('history', []).size() >= 200);
     }
@@ -130,13 +133,14 @@ service cloud.firestore {
       allow read: if isStaff() || (hasProfile() && resource.data.memberId == myMemberId());
       allow create: if isStaff() || (
         hasProfile()
-        && request.resource.data.keys().hasOnly(['id', 'memberId', 'type', 'amount', 'note', 'date', 'status', 'decision', 'decisionDate'])
+        && request.resource.data.keys().hasOnly(['id', 'memberId', 'type', 'amount', 'devise', 'note', 'date', 'status', 'decision', 'decisionDate'])
         && request.resource.data.id == requestId
         && request.resource.data.memberId == myMemberId()
         && request.resource.data.type in ['credit', 'retrait']
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
-        && request.resource.data.amount <= 1000000
+        && request.resource.data.amount <= 100000000
+        && request.resource.data.get('devise', 'USD') in ['USD', 'FC']
         && request.resource.data.note is string
         && request.resource.data.note.size() <= 300
         && request.resource.data.status == 'en attente'

@@ -5,6 +5,12 @@ Application web de gestion d'une AVEC : épargne, crédits et remboursements des
 - **Administrateur** : enregistre les membres, les versements, les crédits et les remboursements ; traite les demandes (crédit / retrait) et les réclamations ; peut corriger les chiffres.
 - **Membre** : se connecte avec son identifiant (son ID, par exemple `MBR-003`) et un mot de passe par défaut qu'il change à sa première connexion. Il consulte seulement son épargne, ses crédits et son historique, envoie des demandes de crédit ou de retrait, et des réclamations.
 
+## Devises et cas sociaux
+
+- Deux devises : **dollars ($)** et **francs congolais (FC)**, chacune avec son épargne, ses crédits (plafond 3x, intérêt 10 %) et ses totaux. Aucune conversion n'est faite.
+- Le tableau de bord affiche l'**argent en caisse** en dollars et en francs (estimation : épargne + intérêts − crédits à rembourser ; en francs on ajoute le fonds cas sociaux).
+- **Cas sociaux** : chaque membre cotise 1 000 FC par semaine (semaines du lundi au dimanche, à partir de son inscription). L'onglet « Cas sociaux » enregistre les cotisations, signale les retards, et enregistre les aides versées (déduites du fonds).
+
 ## Fichiers
 
 | Fichier | Rôle |

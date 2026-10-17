@@ -240,6 +240,7 @@
             <button class="dtab active" data-tab="dashboard" onclick="showTab('dashboard')"><i class="fa-solid fa-chart-pie"></i> Tableau de bord</button>
             <button class="dtab" data-tab="membres" onclick="showTab('membres')"><i class="fa-solid fa-users"></i> Membres</button>
             <button class="dtab" data-tab="operations" onclick="showTab('operations')"><i class="fa-solid fa-money-bill-transfer"></i> Opérations</button>
+            <button class="dtab" data-tab="social" onclick="showTab('social')"><i class="fa-solid fa-hand-holding-heart"></i> Cas sociaux</button>
             <button class="dtab" data-tab="demandes" onclick="showTab('demandes')"><i class="fa-solid fa-inbox"></i> Demandes <span class="tab-badge hidden" id="tabBadgeReq">0</span></button>
             <button class="dtab" data-tab="reclamations" onclick="showTab('reclamations')"><i class="fa-solid fa-bell"></i> Réclamations <span class="tab-badge hidden" id="tabBadgeClaims">0</span></button>
             <button class="dtab hidden" id="tabBtnEquipe" data-tab="equipe" onclick="showTab('equipe')"><i class="fa-solid fa-user-shield"></i> Équipe</button>
@@ -275,6 +276,56 @@
                 <div class="stat-content">
                     <div class="label">Total Intérêts Perçus (10%)</div>
                     <div class="value" id="statTotalInterets">$0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-green"><i class="fa-solid fa-sack-dollar"></i></div>
+                <div class="stat-content">
+                    <div class="label">Argent en caisse — Dollars</div>
+                    <div class="value" id="statCaisseUSD">$0</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-green"><i class="fa-solid fa-sack-dollar"></i></div>
+                <div class="stat-content">
+                    <div class="label">Argent en caisse — Francs</div>
+                    <div class="value" id="statCaisseFC">0 FC</div>
+                    <small id="statCaisseFCNote" style="color:var(--text-muted);"></small>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-purple"><i class="fa-solid fa-hand-holding-heart"></i></div>
+                <div class="stat-content">
+                    <div class="label">Fonds Cas Sociaux</div>
+                    <div class="value" id="statSocialFund">0 FC</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
+                <div class="stat-content">
+                    <div class="label">Épargne en Francs</div>
+                    <div class="value" id="statTotalEpargneFC">0 FC</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                <div class="stat-content">
+                    <div class="label">Crédits en Francs</div>
+                    <div class="value" id="statTotalCreditsFC">0 FC</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-warning"><i class="fa-solid fa-hourglass-half"></i></div>
+                <div class="stat-content">
+                    <div class="label">Reste à rembourser (FC)</div>
+                    <div class="value" id="statTotalRestantFC">0 FC</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon bg-green"><i class="fa-solid fa-percent"></i></div>
+                <div class="stat-content">
+                    <div class="label">Intérêts perçus (FC)</div>
+                    <div class="value" id="statTotalInteretsFC">0 FC</div>
                 </div>
             </div>
             <div class="stat-card">
@@ -370,8 +421,12 @@
                                             <input type="text" id="memPhone" maxlength="25" placeholder="+243 ...">
                                         </div>
                                         <div class="form-group">
-                                            <label>Épargne Initiale Versée ($)</label>
+                                            <label>Épargne Initiale en dollars ($)</label>
                                             <input type="number" id="memEpargne" required min="0" step="0.01" placeholder="Ex: 100">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Épargne Initiale en francs congolais (FC)</label>
+                                            <input type="number" id="memEpargneFC" min="0" step="1" value="0" placeholder="Ex: 50000">
                                         </div>
                                         <div class="form-group">
                                             <label>Mot de passe par défaut du membre <small style="color:var(--text-muted);font-weight:400;">(le membre le changera à sa 1re connexion)</small></label>
@@ -432,7 +487,11 @@
                                         </div>
                                         <div id="memberInfoHint" class="member-details-box hidden"></div>
                                         <div class="form-group" style="margin-top: 12px;">
-                                            <label>Montant du Crédit Demandé ($)</label>
+                                            <label>Devise</label>
+                                            <select id="creditDevise"><option value="USD">Dollars ($)</option><option value="FC">Francs congolais (FC)</option></select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Montant du Crédit Demandé</label>
                                             <input type="number" id="calcCreditAmount" required min="0.01" step="0.01" placeholder="Ex: 150">
                                         </div>
                                         <button type="submit" class="btn"><i class="fa-solid fa-hand-holding-dollar"></i> Valider et Octroyer</button>
@@ -452,7 +511,11 @@
                                             </select>
                                         </div>
                                         <div class="form-group">
-                                            <label>Montant versé ($)</label>
+                                            <label>Devise</label>
+                                            <select id="depositDevise"><option value="USD">Dollars ($)</option><option value="FC">Francs congolais (FC)</option></select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Montant versé</label>
                                             <input type="number" id="depositAmount" required min="0.01" step="0.01" placeholder="Ex: 50">
                                         </div>
                                         <button type="submit" class="btn"><i class="fa-solid fa-plus"></i> Enregistrer le Versement</button>
@@ -480,13 +543,61 @@
                                             </select>
                                         </div>
                                         <div class="form-group">
-                                            <label>Montant remboursé ($)</label>
+                                            <label>Montant remboursé (dans la devise du crédit)</label>
                                             <input type="number" id="repayAmount" required min="0.01" step="0.01" placeholder="Ex: 75">
                                         </div>
                                         <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer le Remboursement</button>
                                     </form>
                                     <div id="repayResultBox" class="alert hidden"></div>
                                 </section>
+                </div>
+            </div>
+        </div>
+
+        <div class="dpanel hidden" id="panel-social">
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-icon bg-green"><i class="fa-solid fa-piggy-bank"></i></div><div class="stat-content"><div class="label">Cotisations reçues</div><div class="value" id="socFundPaid">0 FC</div></div></div>
+                <div class="stat-card"><div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-heart"></i></div><div class="stat-content"><div class="label">Aides versées</div><div class="value" id="socFundAid">0 FC</div></div></div>
+                <div class="stat-card"><div class="stat-icon bg-purple"><i class="fa-solid fa-vault"></i></div><div class="stat-content"><div class="label">Fonds disponible</div><div class="value" id="socFundBalance">0 FC</div></div></div>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <section class="card">
+                        <div class="card-header"><i class="fa-solid fa-coins"></i><h3>Encaisser une cotisation (1 000 FC / semaine)</h3></div>
+                        <form onsubmit="handleSocialForm(event)">
+                            <div class="form-group"><label>Membre</label>
+                                <select id="socialMemberSelect" required><option value="">-- Choisir un membre --</option></select></div>
+                            <div class="form-group"><label>Nombre de semaines payées</label>
+                                <input type="number" id="socialWeeks" required min="1" max="520" step="1" value="1"></div>
+                            <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer la cotisation</button>
+                        </form>
+                    </section>
+                    <section class="card">
+                        <div class="card-header"><i class="fa-solid fa-hand-holding-heart"></i><h3>Verser une aide (cas social)</h3></div>
+                        <form onsubmit="handleSocialAid(event)">
+                            <div class="form-group"><label>Membre aidé</label>
+                                <select id="aideMemberSelect" required><option value="">-- Choisir un membre --</option></select></div>
+                            <div class="form-group"><label>Montant (FC)</label>
+                                <input type="number" id="aideAmount" required min="1" step="1" placeholder="Ex: 20000"></div>
+                            <div class="form-group"><label>Motif <small style="color:var(--text-muted);font-weight:400;">(facultatif)</small></label>
+                                <input type="text" id="aideReason" maxlength="120" placeholder="Ex: deuil, maladie..."></div>
+                            <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Enregistrer l'aide</button>
+                        </form>
+                        <div id="socialResultBox" class="alert hidden"></div>
+                    </section>
+                    <section class="card">
+                        <div class="card-header"><i class="fa-solid fa-clock-rotate-left"></i><h3>Dernières aides</h3></div>
+                        <div id="socialAidList"></div>
+                    </section>
+                </div>
+                <div>
+                    <section class="card">
+                        <div class="card-header"><i class="fa-solid fa-list-check"></i><h3>Suivi des cotisations</h3></div>
+                        <div class="table-wrap"><table>
+                            <thead><tr><th>Membre</th><th>Semaines</th><th>Total versé</th><th>Situation</th><th></th></tr></thead>
+                            <tbody id="socialTableBody"></tbody>
+                        </table></div>
+                    </section>
                 </div>
             </div>
         </div>
@@ -610,7 +721,29 @@
                         <div class="value" id="mStatRestant">$0</div>
                     </div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
+                    <div class="stat-content">
+                        <div class="label">Mon Épargne (FC)</div>
+                        <div class="value" id="mStatEpargneFC">0 FC</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                    <div class="stat-content">
+                        <div class="label">Crédits Obtenus (FC)</div>
+                        <div class="value" id="mStatCreditsFC">0 FC</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon bg-purple"><i class="fa-solid fa-hourglass-half"></i></div>
+                    <div class="stat-content">
+                        <div class="label">Reste à Rembourser (FC)</div>
+                        <div class="value" id="mStatRestantFC">0 FC</div>
+                    </div>
+                </div>
             </div>
+            <div class="alert" id="mSocialBox" style="margin-bottom:16px;background:var(--card);border:1px solid var(--border);"></div>
 
             <div class="grid-container">
                 <div>
@@ -676,8 +809,12 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label>Montant ($)</label>
-                                <input type="number" id="reqAmount" required min="0.01" max="1000000" step="0.01" placeholder="Ex: 100">
+                                <label>Devise</label>
+                                <select id="reqDevise"><option value="USD">Dollars ($)</option><option value="FC">Francs congolais (FC)</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Montant</label>
+                                <input type="number" id="reqAmount" required min="0.01" max="100000000" step="0.01" placeholder="Ex: 100">
                             </div>
                             <div class="form-group">
                                 <label>Motif <small style="color:var(--text-muted);font-weight:400;">(facultatif)</small></label>
@@ -809,6 +946,18 @@
             return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
         }
 
+        // Devises : dollars (USD) et francs congolais (FC). Une fiche ou un crédit sans devise est en dollars.
+        function devOf(x) { return x && x.devise === 'FC' ? 'FC' : 'USD'; }
+        function fmt(v, d) {
+            v = round2(v);
+            if (d !== 'FC') return '$' + v;
+            const parts = String(Math.abs(v)).split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
+            return (v < 0 ? '-' : '') + parts.join(',') + '\u00a0FC';
+        }
+        function sav(m, d) { return Number(d === 'FC' ? m.epargneFC : m.epargne) || 0; }
+        function setSav(m, d, v) { if (d === 'FC') m.epargneFC = v; else m.epargne = v; }
+
         // Hachage SHA-256 avec sel aléatoire pour les mots de passe
         function bytesToHex(buffer) {
             return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -878,8 +1027,9 @@
         function creditRemaining(c) {
             return Math.max(0, round2((Number(c.amount) || 0) - (Number(c.repaid) || 0)));
         }
-        function memberOutstanding(m) {
-            return round2((m.credits || []).reduce((s, c) => s + creditRemaining(c), 0));
+        // Reste à rembourser dans une devise ; sans devise : total toutes devises confondues (sert seulement à savoir s'il reste quelque chose)
+        function memberOutstanding(m, d) {
+            return round2((m.credits || []).filter(c => !d || devOf(c) === d).reduce((s, c) => s + creditRemaining(c), 0));
         }
         normalizeMembers();
 
@@ -923,15 +1073,19 @@
             credit: 'Crédit accordé',
             retrait: "Retrait d'épargne",
             remboursement: 'Remboursement',
+            social: 'Cotisation cas sociaux',
+            aide: 'Aide cas social',
             correction: "Correction de l'administrateur"
         };
         // Garde une trace des opérations pour que le membre (et l'admin) puissent vérifier
-        function logOp(m, type, amount, note) {
+        function logOp(m, type, amount, note, devise) {
             if (!Array.isArray(m.history)) m.history = [];
-            m.history.push({ date: todayISO(), type: type, amount: round2(amount), note: note || '' });
+            const entry = { date: todayISO(), type: type, amount: round2(amount), note: note || '' };
+            if (devise === 'FC') entry.devise = 'FC';
+            m.history.push(entry);
             if (m.history.length > 200) m.history = m.history.slice(-200);
             if (note !== 'Épargne initiale') {
-                logActivity((OP_LABELS[type] || type) + ' : $' + round2(amount) + ' — ' + m.name + ' (' + m.id + ')' + (note ? ' · ' + note : ''), m.id);
+                logActivity((OP_LABELS[type] || type) + ' : ' + fmt(amount, devise) + ' — ' + m.name + ' (' + m.id + ')' + (note ? ' · ' + note : ''), m.id);
             }
         }
 
@@ -1455,10 +1609,12 @@
             const name = document.getElementById('memName').value.trim();
             const phone = document.getElementById('memPhone').value.trim();
             const epargne = round2(parseFloat(document.getElementById('memEpargne').value));
+            const fcEl = document.getElementById('memEpargneFC');
+            const epargneFC = round2(parseFloat(fcEl && fcEl.value ? fcEl.value : '0'));
             const password = document.getElementById('memPassword').value;
 
             if (!name) return;
-            if (!isFinite(epargne) || epargne < 0) {
+            if (!isFinite(epargne) || epargne < 0 || !isFinite(epargneFC) || epargneFC < 0) {
                 alert("Le montant de l'épargne n'est pas valide.");
                 return;
             }
@@ -1475,6 +1631,8 @@
 
             const member = { id: nextMemberId(), name: name, phone: phone, epargne: epargne, credits: [], history: [] };
             if (epargne > 0) logOp(member, 'epargne', epargne, 'Épargne initiale');
+            if (epargneFC > 0) { member.epargneFC = epargneFC; logOp(member, 'epargne', epargneFC, 'Épargne initiale', 'FC'); }
+            member.socialSince = todayISO(); // début de la cotisation hebdomadaire « cas sociaux »
 
             let access;
             try {
@@ -1492,7 +1650,7 @@
             if (access.uid) member.authUid = access.uid;
             members.push(member);
             store.set('avec_members', members);
-            logActivity('Nouveau membre : ' + name + ' (' + member.id + '), épargne initiale $' + epargne, member.id);
+            logActivity('Nouveau membre : ' + name + ' (' + member.id + '), épargne initiale ' + fmt(epargne) + (epargneFC > 0 ? ' + ' + fmt(epargneFC, 'FC') : ''), member.id);
 
             e.target.reset();
             box.className = 'alert alert-success';
@@ -1526,18 +1684,19 @@
         }
 
         // ---------- Corrections (administrateur) ----------
-        function correctEpargne(id) {
+        function correctEpargne(id, devise) {
             if (!requireAdmin()) return;
             const m = members.find(x => x.id === id);
             if (!m) return;
-            const v = prompt("Corriger l'épargne de " + m.name + ' (actuelle : $' + round2(m.epargne) + ') — nouveau total :', round2(m.epargne));
+            const d = devise === 'FC' ? 'FC' : 'USD';
+            const v = prompt("Corriger l'épargne en " + (d === 'FC' ? 'francs' : 'dollars') + ' de ' + m.name + ' (actuelle : ' + fmt(sav(m, d), d) + ') — nouveau total :', round2(sav(m, d)));
             if (v === null) return;
             const nv = round2(parseFloat(String(v).replace(',', '.')));
             if (!isFinite(nv) || nv < 0) { alert('Montant invalide.'); return; }
-            const diff = round2(nv - (Number(m.epargne) || 0));
+            const diff = round2(nv - sav(m, d));
             if (diff === 0) return;
-            m.epargne = nv;
-            logOp(m, 'correction', diff, "Épargne corrigée : nouveau total $" + nv);
+            setSav(m, d, nv);
+            logOp(m, 'correction', diff, "Épargne corrigée : nouveau total " + fmt(nv, d), d);
             store.set('avec_members', members);
             updateDashboard();
             displayMemberCreditInfo();
@@ -1548,14 +1707,15 @@
             const m = members.find(x => x.id === memberId);
             const c = m && (m.credits || []).find(x => x.id === creditId);
             if (!c) return;
-            const v = prompt('Montant total déjà remboursé sur ce crédit de $' + round2(c.amount) + ' (actuel : $' + round2(c.repaid) + ') :', round2(c.repaid));
+            const cd = devOf(c);
+            const v = prompt('Montant total déjà remboursé sur ce crédit de ' + fmt(c.amount, cd) + ' (actuel : ' + fmt(c.repaid, cd) + ') :', round2(c.repaid));
             if (v === null) return;
             const nv = round2(parseFloat(String(v).replace(',', '.')));
-            if (!isFinite(nv) || nv < 0 || nv > round2(c.amount)) { alert('Montant invalide (entre 0 et $' + round2(c.amount) + ').'); return; }
+            if (!isFinite(nv) || nv < 0 || nv > round2(c.amount)) { alert('Montant invalide (entre 0 et ' + fmt(c.amount, cd) + ').'); return; }
             const diff = round2(nv - (Number(c.repaid) || 0));
             if (diff === 0) return;
             c.repaid = nv;
-            logOp(m, 'correction', diff, 'Remboursement corrigé sur le crédit du ' + (c.date || '') + ' : total remboursé $' + nv);
+            logOp(m, 'correction', diff, 'Remboursement corrigé sur le crédit du ' + (c.date || '') + ' : total remboursé ' + fmt(nv, cd), cd);
             store.set('avec_members', members);
             updateDashboard();
             displayMemberCreditInfo();
@@ -1567,9 +1727,10 @@
             const c = m && (m.credits || []).find(x => x.id === creditId);
             if (!c) return;
             if ((Number(c.repaid) || 0) > 0) { alert("Ce crédit a déjà des remboursements : corrigez d'abord le montant remboursé à 0."); return; }
-            if (!confirm('Annuler le crédit de $' + round2(c.amount) + ' accordé à ' + m.name + ' le ' + (c.date || '') + ' ?')) return;
+            const cd = devOf(c);
+            if (!confirm('Annuler le crédit de ' + fmt(c.amount, cd) + ' accordé à ' + m.name + ' le ' + (c.date || '') + ' ?')) return;
             m.credits = m.credits.filter(x => x.id !== creditId);
-            logOp(m, 'correction', -round2(c.amount), 'Crédit du ' + (c.date || '') + ' annulé');
+            logOp(m, 'correction', -round2(c.amount), 'Crédit du ' + (c.date || '') + ' annulé', cd);
             store.set('avec_members', members);
             updateDashboard();
             displayMemberCreditInfo();
@@ -1581,9 +1742,8 @@
             const selected = select.value;
             let options = '<option value="">-- Choisir un membre --</option>';
             members.forEach(m => {
-                const epargne = Number(m.epargne) || 0;
                 options += '<option value="' + escapeHtml(m.id) + '">' + escapeHtml(m.name) +
-                    (withCeiling ? ' (plafond restant : $' + availableCeiling(m) + ')' : '') + '</option>';
+                    (withCeiling ? ' (plafond restant : ' + fmt(availableCeiling(m, 'USD')) + ' · ' + fmt(availableCeiling(m, 'FC'), 'FC') + ')' : '') + '</option>';
             });
             select.innerHTML = options;
             select.value = selected;
@@ -1591,8 +1751,9 @@
         }
 
         // Plafond disponible = 3x l'épargne - ce qui reste à rembourser
-        function availableCeiling(m) {
-            return Math.max(0, round2((Number(m.epargne) || 0) * 3 - memberOutstanding(m)));
+        function availableCeiling(m, d) {
+            d = d === 'FC' ? 'FC' : 'USD';
+            return Math.max(0, round2(sav(m, d) * 3 - memberOutstanding(m, d)));
         }
 
         // Un crédit est « en cours » tant qu'il reste quelque chose à rembourser (y compris en retard)
@@ -1601,9 +1762,10 @@
         }
 
         // Retrait possible : l'épargne restante doit continuer à couvrir les crédits en cours (plafond 3x)
-        function availableWithdrawal(m) {
-            const keep = memberOutstanding(m) / 3;
-            const free = (Number(m.epargne) || 0) - keep;
+        function availableWithdrawal(m, d) {
+            d = d === 'FC' ? 'FC' : 'USD';
+            const keep = memberOutstanding(m, d) / 3;
+            const free = sav(m, d) - keep;
             return Math.max(0, Math.floor(free * 100 + 1e-9) / 100);
         }
 
@@ -1631,14 +1793,12 @@
             const today = todayISO();
             let rows = '';
 
-            let totalEpargne = 0;
-            let totalCredits = 0;
-            let totalInterets = 0;
-            let totalRestant = 0;
+            const T = { USD: { epargne: 0, credits: 0, interets: 0, restant: 0 }, FC: { epargne: 0, credits: 0, interets: 0, restant: 0 } };
 
             members.forEach(m => {
                 const epargne = Number(m.epargne) || 0;
-                totalEpargne += epargne;
+                T.USD.epargne += epargne;
+                T.FC.epargne += Number(m.epargneFC) || 0;
 
                 let creditsListHtml = '-';
                 if (m.credits && m.credits.length > 0) {
@@ -1647,9 +1807,10 @@
                         const amount = Number(c.amount) || 0;
                         const interet = Number(c.interet) || 0;
                         const restant = creditRemaining(c);
-                        totalCredits += amount;
-                        totalInterets += interet;
-                        totalRestant += restant;
+                        const cd = devOf(c);
+                        T[cd].credits += amount;
+                        T[cd].interets += interet;
+                        T[cd].restant += restant;
 
                         let badge;
                         if (restant === 0) badge = '<span class="badge badge-ok">Remboursé</span>';
@@ -1657,9 +1818,9 @@
                         else badge = '<span class="badge badge-due">En cours</span>';
 
                         const cidAttr = escapeHtml(c.id);
-                        creditsListHtml += '<li style="margin-bottom:4px;">$' + round2(amount) +
-                            ' (Intérêt: $' + round2(interet) + ') ' + badge +
-                            '<br><small style="color:var(--text-muted);">Reste : $' + restant +
+                        creditsListHtml += '<li style="margin-bottom:4px;">' + fmt(amount, cd) +
+                            ' (Intérêt: ' + fmt(interet, cd) + ') ' + badge +
+                            '<br><small style="color:var(--text-muted);">Reste : ' + fmt(restant, cd) +
                             ' · Échéance : ' + escapeHtml(formatISOtoFR(c.dueDate)) + '</small> ' +
                             '<button class="btn-small" onclick="correctRepaid(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Corriger le montant remboursé"><i class="fa-solid fa-pen-to-square"></i></button>' +
                             (canDelete(currentUser) ? '<button class="btn-small danger" onclick="deleteCredit(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Annuler ce crédit"><i class="fa-solid fa-xmark"></i></button>' : '') +
@@ -1678,11 +1839,12 @@
                 rows += '<tr>' +
                     '<td><strong>' + idAttr + '</strong></td>' +
                     '<td>' + escapeHtml(m.name) + '<br><small style="color:var(--text-muted);">' + escapeHtml(m.phone || '') + '</small><br>' + accessBadge + '</td>' +
-                    '<td><strong>$' + round2(epargne) + '</strong></td>' +
+                    '<td><strong>' + fmt(epargne) + '</strong><br><span style="font-weight:600;color:var(--text-muted);">' + fmt(sav(m, 'FC'), 'FC') + '</span></td>' +
                     '<td>' + creditsListHtml + '</td>' +
                     '<td style="white-space:nowrap;">' +
                         '<button class="btn-small" onclick="editMember(\'' + idAttr + '\')" title="Modifier le nom / téléphone"><i class="fa-solid fa-pen"></i></button>' +
-                        '<button class="btn-small" onclick="correctEpargne(\'' + idAttr + '\')" title="Corriger l\'épargne"><i class="fa-solid fa-coins"></i></button>' +
+                        '<button class="btn-small" onclick="correctEpargne(\'' + idAttr + '\', \'USD\')" title="Corriger l\'épargne en dollars"><i class="fa-solid fa-coins"></i> $</button>' +
+                        '<button class="btn-small" onclick="correctEpargne(\'' + idAttr + '\', \'FC\')" title="Corriger l\'épargne en francs congolais"><i class="fa-solid fa-coins"></i> FC</button>' +
                         '<button class="btn-small" onclick="resetMemberPassword(\'' + idAttr + '\')" title="Définir / réinitialiser le mot de passe par défaut"><i class="fa-solid fa-key"></i></button>' +
                         (canDelete(currentUser) ? '<button class="btn-small danger" onclick="deleteMember(\'' + idAttr + '\')" title="Supprimer"><i class="fa-solid fa-trash"></i></button>' : '') +
                     '</td>' +
@@ -1700,13 +1862,26 @@
             fillMemberSelect('creditMemberSelect', true);
             fillMemberSelect('depositMemberSelect', false);
             fillMemberSelect('repayMemberSelect', false);
+            fillMemberSelect('socialMemberSelect', false);
+            fillMemberSelect('aideMemberSelect', false);
             fillRepayCredits();
 
-            document.getElementById('statTotalEpargne').textContent = '$' + round2(totalEpargne);
-            document.getElementById('statTotalCredits').textContent = '$' + round2(totalCredits);
-            document.getElementById('statTotalRestant').textContent = '$' + round2(totalRestant);
-            document.getElementById('statTotalInterets').textContent = '$' + round2(totalInterets);
+            document.getElementById('statTotalEpargne').textContent = fmt(T.USD.epargne);
+            document.getElementById('statTotalCredits').textContent = fmt(T.USD.credits);
+            document.getElementById('statTotalRestant').textContent = fmt(T.USD.restant);
+            document.getElementById('statTotalInterets').textContent = fmt(T.USD.interets);
+            document.getElementById('statTotalEpargneFC').textContent = fmt(T.FC.epargne, 'FC');
+            document.getElementById('statTotalCreditsFC').textContent = fmt(T.FC.credits, 'FC');
+            document.getElementById('statTotalRestantFC').textContent = fmt(T.FC.restant, 'FC');
+            document.getElementById('statTotalInteretsFC').textContent = fmt(T.FC.interets, 'FC');
             document.getElementById('statTotalMembres').textContent = members.length;
+            // Argent en caisse (estimation) : épargne + intérêts encaissés − crédits encore dehors ; en francs, on ajoute le fonds « cas sociaux »
+            const fund = socialFund();
+            document.getElementById('statCaisseUSD').textContent = fmt(T.USD.epargne + T.USD.interets - T.USD.restant);
+            document.getElementById('statCaisseFC').textContent = fmt(T.FC.epargne + T.FC.interets - T.FC.restant + fund.balance, 'FC');
+            document.getElementById('statCaisseFCNote').textContent = 'dont cas sociaux : ' + fmt(fund.balance, 'FC');
+            document.getElementById('statSocialFund').textContent = fmt(fund.balance, 'FC');
+            renderSocial();
 
             renderAdminRequests();
             renderAdminClaims();
@@ -1722,14 +1897,145 @@
             }
             const member = members.find(m => m.id === memId);
             if (member) {
-                const maxCredit = round2((Number(member.epargne) || 0) * 3);
-                const outstanding = memberOutstanding(member);
-                hintBox.innerHTML = '<strong>Épargne actuelle :</strong> $' + round2(member.epargne) +
-                    '<br><strong>Plafond de crédit (3x) :</strong> $' + maxCredit +
-                    '<br><strong>Déjà à rembourser :</strong> $' + outstanding +
-                    '<br><strong>Crédit encore possible :</strong> <span style="color:var(--primary); font-weight:bold;">$' + availableCeiling(member) + '</span>';
+                const line = d => '<strong>' + (d === 'FC' ? 'Francs (FC)' : 'Dollars ($)') + ' :</strong> épargne ' + fmt(sav(member, d), d) +
+                    ' · plafond (3x) ' + fmt(sav(member, d) * 3, d) +
+                    ' · déjà à rembourser ' + fmt(memberOutstanding(member, d), d) +
+                    ' · <strong>crédit encore possible : <span style="color:var(--primary); font-weight:bold;">' + fmt(availableCeiling(member, d), d) + '</span></strong>';
+                hintBox.innerHTML = line('USD') + '<br>' + line('FC');
                 hintBox.classList.remove('hidden');
             }
+        }
+
+        // ---------- Cas sociaux : cotisation fixe de 1000 FC par semaine et par membre ----------
+        const SOCIAL_WEEKLY = 1000;
+        function weekIndex(iso) {
+            const p = String(iso || '').slice(0, 10).split('-').map(Number);
+            if (p.length !== 3 || !p[0]) return null;
+            const days = Math.floor(Date.UTC(p[0], p[1] - 1, p[2]) / 86400000);
+            return Math.floor((days + 3) / 7); // les semaines commencent le lundi
+        }
+        function socialPaidWeeks(m) { return (m.social || []).reduce((t, x) => t + (Number(x.weeks) || 0), 0); }
+        function socialPaidTotal(m) { return round2((m.social || []).reduce((t, x) => t + (Number(x.amount) || 0), 0)); }
+        function socialAidTotal(m) { return round2((m.socialAid || []).reduce((t, x) => t + (Number(x.amount) || 0), 0)); }
+        function socialDueWeeks(m) {
+            const a = weekIndex(m.socialSince), b = weekIndex(todayISO());
+            if (a === null || b === null) return 0;
+            return Math.max(0, b - a + 1);
+        }
+        function socialArrears(m) { return socialDueWeeks(m) - socialPaidWeeks(m); } // négatif = payé d'avance
+        function socialFund() {
+            let paid = 0, aid = 0;
+            members.forEach(m => { paid += socialPaidTotal(m); aid += socialAidTotal(m); });
+            return { paid: round2(paid), aid: round2(aid), balance: round2(paid - aid) };
+        }
+        function socialId(prefix) { return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6); }
+        function socialMsg(text, ok) {
+            const box = document.getElementById('socialResultBox');
+            if (!box) return;
+            box.className = 'alert ' + (ok ? 'alert-success' : 'alert-error');
+            box.textContent = text;
+        }
+        function recordSocial(memberId, weeks) {
+            if (!requireAdmin()) return;
+            const m = members.find(x => x.id === memberId);
+            weeks = Math.floor(Number(weeks));
+            if (!m) { socialMsg('Choisissez un membre.', false); return; }
+            if (!isFinite(weeks) || weeks < 1 || weeks > 520) { socialMsg('Le nombre de semaines doit être entre 1 et 520.', false); return; }
+            if (!Array.isArray(m.social)) m.social = [];
+            if (!m.socialSince) m.socialSince = todayISO();
+            const amount = weeks * SOCIAL_WEEKLY;
+            m.social.push({ id: socialId('S'), date: todayISO(), weeks: weeks, amount: amount });
+            logOp(m, 'social', amount, weeks + ' semaine(s)', 'FC');
+            store.set('avec_members', members);
+            socialMsg('Cotisation enregistrée : ' + fmt(amount, 'FC') + ' (' + weeks + ' semaine(s)) pour ' + m.name + '.', true);
+            updateDashboard();
+        }
+        function handleSocialForm(e) {
+            e.preventDefault();
+            recordSocial(document.getElementById('socialMemberSelect').value, document.getElementById('socialWeeks').value);
+        }
+        function cancelLastSocial(memberId) {
+            if (!requireTotal()) return;
+            const m = members.find(x => x.id === memberId);
+            if (!m || !(m.social || []).length) return;
+            const last = m.social[m.social.length - 1];
+            if (!confirm('Annuler la dernière cotisation de ' + m.name + ' (' + fmt(last.amount, 'FC') + ', ' + last.weeks + ' sem.) ?')) return;
+            m.social.pop();
+            logActivity('Cotisation cas sociaux annulée : ' + fmt(last.amount, 'FC') + ' — ' + m.name + ' (' + m.id + ')', m.id);
+            store.set('avec_members', members);
+            updateDashboard();
+        }
+        function handleSocialAid(e) {
+            e.preventDefault();
+            if (!requireAdmin()) return;
+            const m = members.find(x => x.id === document.getElementById('aideMemberSelect').value);
+            const amount = round2(parseFloat(document.getElementById('aideAmount').value));
+            const reason = document.getElementById('aideReason').value.trim().slice(0, 120);
+            if (!m) { socialMsg('Choisissez le membre aidé.', false); return; }
+            if (!isFinite(amount) || amount <= 0) { socialMsg('Le montant doit être supérieur à 0.', false); return; }
+            const fund = socialFund();
+            if (amount > fund.balance) { socialMsg('Le fonds cas sociaux ne contient que ' + fmt(fund.balance, 'FC') + '.', false); return; }
+            if (!Array.isArray(m.socialAid)) m.socialAid = [];
+            m.socialAid.push({ id: socialId('H'), date: todayISO(), amount: amount, reason: reason });
+            logOp(m, 'aide', amount, reason, 'FC');
+            store.set('avec_members', members);
+            document.getElementById('aideAmount').value = '';
+            document.getElementById('aideReason').value = '';
+            socialMsg('Aide enregistrée : ' + fmt(amount, 'FC') + ' versés à ' + m.name + '.', true);
+            updateDashboard();
+        }
+        function setSocialStart(memberId) {
+            if (!requireAdmin()) return;
+            const m = members.find(x => x.id === memberId);
+            if (!m) return;
+            const v = prompt('Date de début de la cotisation de ' + m.name + ' (AAAA-MM-JJ) :', m.socialSince || todayISO());
+            if (v === null) return;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(v.trim()) || weekIndex(v.trim()) === null) { alert('Date invalide. Exemple : 2026-01-05'); return; }
+            m.socialSince = v.trim();
+            logActivity('Début cotisation cas sociaux fixé au ' + m.socialSince + ' — ' + m.name + ' (' + m.id + ')', m.id);
+            store.set('avec_members', members);
+            updateDashboard();
+        }
+        function arrearsText(m) {
+            const a = socialArrears(m);
+            if (a > 0) return '<span class="badge badge-due">' + a + ' sem. en retard (' + fmt(a * SOCIAL_WEEKLY, 'FC') + ')</span>';
+            if (a < 0) return '<span class="badge badge-ok">' + (-a) + ' sem. d\'avance</span>';
+            return '<span class="badge badge-ok">À jour</span>';
+        }
+        function renderSocial() {
+            const tb = document.getElementById('socialTableBody');
+            if (!tb) return;
+            const fund = socialFund();
+            document.getElementById('socFundPaid').textContent = fmt(fund.paid, 'FC');
+            document.getElementById('socFundAid').textContent = fmt(fund.aid, 'FC');
+            document.getElementById('socFundBalance').textContent = fmt(fund.balance, 'FC');
+            let rows = '';
+            members.forEach(m => {
+                const id = escapeHtml(m.id);
+                rows += '<tr><td><strong>' + id + '</strong><br>' + escapeHtml(m.name) + '</td>' +
+                    '<td>' + socialPaidWeeks(m) + ' / ' + socialDueWeeks(m) + '<br><small style="color:var(--text-muted);">' + (m.socialSince ? 'depuis ' + escapeHtml(formatISOtoFR(m.socialSince)) : 'début à définir (bouton calendrier)') + '</small></td>' +
+                    '<td>' + fmt(socialPaidTotal(m), 'FC') + (socialAidTotal(m) ? '<br><small style="color:var(--text-muted);">aides reçues : ' + fmt(socialAidTotal(m), 'FC') + '</small>' : '') + '</td>' +
+                    '<td>' + arrearsText(m) + '</td>' +
+                    '<td style="white-space:nowrap;">' +
+                    '<button class="btn-small" onclick="recordSocial(\'' + id + '\', 1)" title="Encaisser 1 semaine (1 000 FC)"><i class="fa-solid fa-plus"></i> 1 sem.</button>' +
+                    '<button class="btn-small" onclick="setSocialStart(\'' + id + '\')" title="Modifier la date de début"><i class="fa-solid fa-calendar"></i></button>' +
+                    (canDelete(currentUser) ? '<button class="btn-small danger" onclick="cancelLastSocial(\'' + id + '\')" title="Annuler la dernière cotisation"><i class="fa-solid fa-rotate-left"></i></button>' : '') +
+                    '</td></tr>';
+            });
+            tb.innerHTML = rows || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Aucun membre.</td></tr>';
+            const aids = [];
+            members.forEach(m => (m.socialAid || []).forEach(a => aids.push({ m: m, a: a })));
+            aids.sort((x, y) => String(y.a.date).localeCompare(String(x.a.date)));
+            document.getElementById('socialAidList').innerHTML = aids.length
+                ? aids.slice(0, 30).map(x => '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:0.88rem;"><strong>' + fmt(x.a.amount, 'FC') + '</strong> → ' +
+                    escapeHtml(x.m.name) + ' <small style="color:var(--text-muted);">· ' + escapeHtml(formatISOtoFR(x.a.date)) + (x.a.reason ? ' · ' + escapeHtml(x.a.reason) : '') + '</small></div>').join('')
+                : '<p style="color:var(--text-muted);font-size:0.88rem;">Aucune aide versée pour l\'instant.</p>';
+        }
+        function renderMemberSocial(m) {
+            const box = document.getElementById('mSocialBox');
+            if (!box) return;
+            box.innerHTML = '<strong>Cotisation cas sociaux :</strong> ' + fmt(SOCIAL_WEEKLY, 'FC') + ' par semaine · ' +
+                socialPaidWeeks(m) + ' semaine(s) payée(s) sur ' + socialDueWeeks(m) + ' (' + fmt(socialPaidTotal(m), 'FC') + ') ' + arrearsText(m);
         }
 
         // ---------- Équipe & postes (administrateur / accès total) ----------
@@ -1739,7 +2045,7 @@
             // Équipe et Journal : réservés à l'accès total (en ligne)
             if ((name === 'equipe' || name === 'journal') && (!CLOUD || !currentUser || currentUser.level !== 'total')) name = 'dashboard';
             currentTab = name;
-            ['dashboard', 'membres', 'operations', 'demandes', 'reclamations', 'equipe', 'journal'].forEach(t => {
+            ['dashboard', 'membres', 'operations', 'social', 'demandes', 'reclamations', 'equipe', 'journal'].forEach(t => {
                 setHidden('panel-' + t, t !== name);
             });
             if (document.querySelectorAll) {
@@ -1780,7 +2086,7 @@
                 if (reqs.length) {
                     html += '<p><strong>' + reqs.length + ' demande(s) en attente</strong></p><ul style="padding-left:18px;margin:6px 0 10px;">' +
                         reqs.slice(0, 5).map(r => '<li>' + escapeHtml(memberLabel(r.memberId)) + ' — ' +
-                            (r.type === 'credit' ? 'crédit' : 'retrait') + ' de $' + round2(r.amount) + '</li>').join('') + '</ul>' +
+                            (r.type === 'credit' ? 'crédit' : 'retrait') + ' de ' + fmt(r.amount, devOf(r)) + '</li>').join('') + '</ul>' +
                         '<button type="button" class="btn-small" onclick="showTab(\'demandes\')">Traiter les demandes</button> ';
                 }
                 if (cls.length) {
@@ -1804,7 +2110,7 @@
                         ops.slice(0, 12).map(o => '<tr><td>' + escapeHtml(formatISOtoFR(o.h.date)) + '</td><td>' + escapeHtml(o.m.name) +
                             '<br><small style="color:var(--text-muted);">' + escapeHtml(o.m.id) + '</small></td><td>' + escapeHtml(OP_LABELS[o.h.type] || o.h.type) +
                             (o.h.note ? '<br><small style="color:var(--text-muted);">' + escapeHtml(o.h.note) + '</small>' : '') +
-                            '</td><td><strong>$' + round2(o.h.amount) + '</strong></td></tr>').join('') + '</tbody></table>';
+                            '</td><td><strong>' + fmt(o.h.amount, devOf(o.h)) + '</strong></td></tr>').join('') + '</tbody></table>';
                 }
             }
         }
@@ -1958,7 +2264,7 @@
             const m = members.find(x => x.id === id);
             if (!m) return;
             if (memberOutstanding(m) > 0) {
-                alert('Impossible de supprimer ' + m.name + ' : il lui reste $' + memberOutstanding(m) + ' de crédit à rembourser.');
+                alert('Impossible de supprimer ' + m.name + ' : il lui reste ' + [memberOutstanding(m, 'USD') > 0 ? fmt(memberOutstanding(m, 'USD')) : '', memberOutstanding(m, 'FC') > 0 ? fmt(memberOutstanding(m, 'FC'), 'FC') : ''].filter(Boolean).join(' + ') + ' de crédit à rembourser.');
                 return;
             }
             if (!confirm('Supprimer définitivement le membre ' + m.name + ' (' + m.id + '), son accès et ses réclamations ?')) return;
@@ -1984,17 +2290,19 @@
             const box = document.getElementById('depositResultBox');
             const member = members.find(m => m.id === document.getElementById('depositMemberSelect').value);
             const amount = round2(parseFloat(document.getElementById('depositAmount').value));
+            const dEl = document.getElementById('depositDevise');
+            const dev = dEl && dEl.value === 'FC' ? 'FC' : 'USD';
             if (!member) return;
             if (!isFinite(amount) || amount <= 0) {
                 box.className = 'alert alert-error';
                 box.textContent = 'Le montant du versement doit être supérieur à 0.';
                 return;
             }
-            member.epargne = round2((Number(member.epargne) || 0) + amount);
-            logOp(member, 'epargne', amount);
+            setSav(member, dev, round2(sav(member, dev) + amount));
+            logOp(member, 'epargne', amount, '', dev);
             store.set('avec_members', members);
             box.className = 'alert alert-success';
-            box.innerHTML = '<strong>Versement enregistré.</strong> Nouvelle épargne de ' + escapeHtml(member.name) + ' : $' + member.epargne;
+            box.innerHTML = '<strong>Versement enregistré.</strong> Nouvelle épargne de ' + escapeHtml(member.name) + ' : ' + fmt(sav(member, dev), dev);
             document.getElementById('depositAmount').value = '';
             updateDashboard();
             displayMemberCreditInfo();
@@ -2017,8 +2325,8 @@
             }
             let options = '<option value="">-- Choisir un crédit --</option>';
             open.forEach(c => {
-                options += '<option value="' + escapeHtml(c.id) + '">$' + round2(c.amount) + ' du ' + escapeHtml(c.date || '') +
-                    ' — reste $' + creditRemaining(c) + '</option>';
+                options += '<option value="' + escapeHtml(c.id) + '">' + fmt(c.amount, devOf(c)) + ' du ' + escapeHtml(c.date || '') +
+                    ' — reste ' + fmt(creditRemaining(c), devOf(c)) + '</option>';
             });
             sel.innerHTML = options;
             sel.value = selected;
@@ -2046,16 +2354,16 @@
             }
             if (amount > restant) {
                 box.className = 'alert alert-error';
-                box.textContent = 'Le montant dépasse le reste à rembourser ($' + restant + ').';
+                box.textContent = 'Le montant dépasse le reste à rembourser (' + fmt(restant, devOf(credit)) + ').';
                 return;
             }
             credit.repaid = round2((Number(credit.repaid) || 0) + amount);
-            logOp(member, 'remboursement', amount, 'Crédit du ' + (credit.date || ''));
+            logOp(member, 'remboursement', amount, 'Crédit du ' + (credit.date || ''), devOf(credit));
             store.set('avec_members', members);
             const nouveauReste = creditRemaining(credit);
             box.className = 'alert alert-success';
             box.innerHTML = '<strong>Remboursement enregistré.</strong> ' +
-                (nouveauReste === 0 ? 'Ce crédit est entièrement remboursé.' : 'Reste à rembourser : $' + nouveauReste);
+                (nouveauReste === 0 ? 'Ce crédit est entièrement remboursé.' : 'Reste à rembourser : ' + fmt(nouveauReste, devOf(credit)));
             document.getElementById('repayAmount').value = '';
             updateDashboard();
             displayMemberCreditInfo();
@@ -2070,18 +2378,18 @@
         }
         function exportCSV() {
             if (!requireAdmin()) return;
-            const header = ['ID', 'Nom', 'Téléphone', 'Épargne ($)', 'Crédit ($)', 'Intérêt ($)', 'Remboursé ($)', 'Reste ($)', 'Date du crédit', 'Échéance', 'Statut'];
+            const header = ['ID', 'Nom', 'Téléphone', 'Épargne ($)', 'Épargne (FC)', 'Devise du crédit', 'Crédit', 'Intérêt', 'Remboursé', 'Reste', 'Date du crédit', 'Échéance', 'Statut', 'Cotisations cas sociaux (FC)', 'Aides cas sociaux reçues (FC)'];
             const lines = [header.map(csvCell).join(';')];
             const today = todayISO();
             members.forEach(m => {
                 if (!m.credits || m.credits.length === 0) {
-                    lines.push([m.id, m.name, m.phone || '', round2(m.epargne), '', '', '', '', '', '', 'Aucun crédit'].map(csvCell).join(';'));
+                    lines.push([m.id, m.name, m.phone || '', round2(m.epargne), round2(sav(m, 'FC')), '', '', '', '', '', '', '', 'Aucun crédit', socialPaidTotal(m), socialAidTotal(m)].map(csvCell).join(';'));
                 } else {
                     m.credits.forEach(c => {
                         const restant = creditRemaining(c);
                         const statut = restant === 0 ? 'Remboursé' : (c.dueDate && c.dueDate < today ? 'En retard' : 'En cours');
-                        lines.push([m.id, m.name, m.phone || '', round2(m.epargne), round2(c.amount), round2(c.interet),
-                            round2(c.repaid), restant, c.date || '', formatISOtoFR(c.dueDate), statut].map(csvCell).join(';'));
+                        lines.push([m.id, m.name, m.phone || '', round2(m.epargne), round2(sav(m, 'FC')), devOf(c) === 'FC' ? 'FC' : 'USD', round2(c.amount), round2(c.interet),
+                            round2(c.repaid), restant, c.date || '', formatISOtoFR(c.dueDate), statut, socialPaidTotal(m), socialAidTotal(m)].map(csvCell).join(';'));
                     });
                 }
             });
@@ -2099,7 +2407,8 @@
         // ---------- Crédits ----------
         // Enregistre un crédit (intérêt de 10 % prélevé à la source, échéance à 3 mois).
         // Utilisé par l'octroi direct et par l'approbation d'une demande de membre.
-        function grantCredit(member, amount) {
+        function grantCredit(member, amount, devise) {
+            const dev = devise === 'FC' ? 'FC' : 'USD';
             const interet = round2(amount * 0.10);
             const net = round2(amount - interet);
             const now = new Date();
@@ -2111,9 +2420,10 @@
                 net: net,
                 repaid: 0,
                 date: now.toLocaleDateString('fr-FR'),
-                dueDate: addMonthsISO(now, 3)
+                dueDate: addMonthsISO(now, 3),
+                devise: dev
             });
-            logOp(member, 'credit', amount, 'Net versé : $' + net + ' (intérêt 10 % : $' + interet + ')');
+            logOp(member, 'credit', amount, 'Net versé : ' + fmt(net, dev) + ' (intérêt 10 % : ' + fmt(interet, dev) + ')', dev);
             store.set('avec_members', members);
             return { interet: interet, net: net, dueDate: addMonthsISO(now, 3) };
         }
@@ -2123,6 +2433,8 @@
             if (!requireAdmin()) return;
             const memId = document.getElementById('creditMemberSelect').value;
             const amount = round2(parseFloat(document.getElementById('calcCreditAmount').value));
+            const cdEl = document.getElementById('creditDevise');
+            const dev = cdEl && cdEl.value === 'FC' ? 'FC' : 'USD';
             const resBox = document.getElementById('creditResultBox');
 
             const member = members.find(m => m.id === memId);
@@ -2134,23 +2446,23 @@
                 return;
             }
 
-            const maxAllowed = availableCeiling(member);
+            const maxAllowed = availableCeiling(member, dev);
 
             if (amount > maxAllowed) {
                 resBox.className = 'alert alert-error';
-                resBox.innerHTML = '<strong>Crédit Refusé !</strong> Le montant demandé ($' + amount +
-                    ") dépasse le plafond encore disponible de $" + maxAllowed +
-                    " (3x l'épargne, moins $" + memberOutstanding(member) + " déjà à rembourser).";
+                resBox.innerHTML = '<strong>Crédit Refusé !</strong> Le montant demandé (' + fmt(amount, dev) +
+                    ") dépasse le plafond encore disponible de " + fmt(maxAllowed, dev) +
+                    " (3x l'épargne, moins " + fmt(memberOutstanding(member, dev), dev) + " déjà à rembourser).";
             } else {
-                const g = grantCredit(member, amount);
+                const g = grantCredit(member, amount, dev);
 
                 resBox.className = 'alert alert-success';
                 resBox.innerHTML =
                     '<strong>Crédit Accordé et Enregistré !</strong><br>' +
-                    '• Montant brut : $' + amount + '<br>' +
-                    '• Intérêt perçu à la source (10%) : $' + g.interet + '<br>' +
-                    '• Somme nette versée au membre : <strong>$' + g.net + '</strong><br>' +
-                    '• À rembourser avant le ' + formatISOtoFR(g.dueDate) + ' : $' + amount;
+                    '• Montant brut : ' + fmt(amount, dev) + '<br>' +
+                    '• Intérêt perçu à la source (10%) : ' + fmt(g.interet, dev) + '<br>' +
+                    '• Somme nette versée au membre : <strong>' + fmt(g.net, dev) + '</strong><br>' +
+                    '• À rembourser avant le ' + formatISOtoFR(g.dueDate) + ' : ' + fmt(amount, dev);
                 updateDashboard();
                 displayMemberCreditInfo();
                 document.getElementById('calcCreditAmount').value = '';
@@ -2190,23 +2502,24 @@
             setHidden('memberDataWrap', must);
             if (must) return;
 
-            let totalCredits = 0;
-            let totalRestant = 0;
+            const tc = { USD: 0, FC: 0 };
+            const tr = { USD: 0, FC: 0 };
             let rows = '';
             (m.credits || []).forEach(c => {
                 const restant = creditRemaining(c);
-                totalCredits += Number(c.amount) || 0;
-                totalRestant += restant;
+                const cd = devOf(c);
+                tc[cd] += Number(c.amount) || 0;
+                tr[cd] += restant;
                 let badge;
                 if (restant === 0) badge = '<span class="badge badge-ok">Remboursé</span>';
                 else if (c.dueDate && c.dueDate < today) badge = '<span class="badge badge-late">En retard</span>';
                 else badge = '<span class="badge badge-due">En cours</span>';
                 rows += '<tr>' +
                     '<td>' + escapeHtml(c.date || '') + '</td>' +
-                    '<td>$' + round2(c.amount) + '</td>' +
-                    '<td>$' + round2(c.interet) + '</td>' +
-                    '<td>$' + round2(c.repaid) + '</td>' +
-                    '<td><strong>$' + restant + '</strong></td>' +
+                    '<td>' + fmt(c.amount, cd) + '</td>' +
+                    '<td>' + fmt(c.interet, cd) + '</td>' +
+                    '<td>' + fmt(c.repaid, cd) + '</td>' +
+                    '<td><strong>' + fmt(restant, cd) + '</strong></td>' +
                     '<td>' + escapeHtml(formatISOtoFR(c.dueDate)) + '</td>' +
                     '<td>' + badge + '</td>' +
                     '</tr>';
@@ -2214,9 +2527,12 @@
             document.getElementById('mCreditsBody').innerHTML = rows ||
                 '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Aucun crédit.</td></tr>';
 
-            document.getElementById('mStatEpargne').textContent = '$' + round2(m.epargne);
-            document.getElementById('mStatCredits').textContent = '$' + round2(totalCredits);
-            document.getElementById('mStatRestant').textContent = '$' + round2(totalRestant);
+            document.getElementById('mStatEpargne').textContent = fmt(m.epargne);
+            document.getElementById('mStatCredits').textContent = fmt(tc.USD);
+            document.getElementById('mStatRestant').textContent = fmt(tr.USD);
+            document.getElementById('mStatEpargneFC').textContent = fmt(sav(m, 'FC'), 'FC');
+            document.getElementById('mStatCreditsFC').textContent = fmt(tc.FC, 'FC');
+            document.getElementById('mStatRestantFC').textContent = fmt(tr.FC, 'FC');
 
             const hist = (m.history || []).slice().reverse();
             let hrows = '';
@@ -2224,7 +2540,7 @@
                 const label = OP_LABELS[h.type] || 'Opération';
                 // Les corrections sont signées (+ ajout / − retrait) ; les autres opérations sont des montants simples
                 const amt = Number(h.amount) || 0;
-                const shown = h.type === 'correction' ? (amt > 0 ? '+' : '−') + '$' + round2(Math.abs(amt)) : '$' + round2(amt);
+                const shown = h.type === 'correction' ? (amt > 0 ? '+' : '−') + fmt(Math.abs(amt), devOf(h)) : fmt(amt, devOf(h));
                 hrows += '<tr>' +
                     '<td>' + escapeHtml(formatISOtoFR(h.date)) + '</td>' +
                     '<td>' + escapeHtml(label) + (h.note ? '<br><small style="color:var(--text-muted);">' + escapeHtml(h.note) + '</small>' : '') + '</td>' +
@@ -2234,6 +2550,7 @@
             document.getElementById('mHistoryBody').innerHTML = hrows ||
                 '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">Aucune opération enregistrée.</td></tr>';
 
+            renderMemberSocial(m);
             renderMemberLimits(m);
             renderMemberRequests(m.id);
             renderMemberClaims(m.id);
@@ -2248,13 +2565,15 @@
         };
 
         function renderMemberLimits(m) {
+            const both = f => fmt(f('USD'), 'USD') + ' · ' + fmt(f('FC'), 'FC');
+            const rest = [memberOutstanding(m, 'USD') > 0 ? fmt(memberOutstanding(m, 'USD')) : '', memberOutstanding(m, 'FC') > 0 ? fmt(memberOutstanding(m, 'FC'), 'FC') : ''].filter(Boolean).join(' + ');
             const creditLine = hasActiveCredit(m)
-                ? '<strong>Nouveau crédit :</strong> <span style="color:var(--danger);font-weight:600;">impossible tant que votre crédit en cours n\'est pas remboursé (reste $' + memberOutstanding(m) + ').</span>'
-                : '<strong>Crédit possible jusqu\'à :</strong> $' + availableCeiling(m) +
-                  ' <small style="color:var(--text-muted);">(3x votre épargne)</small>';
+                ? '<strong>Nouveau crédit :</strong> <span style="color:var(--danger);font-weight:600;">impossible tant que votre crédit en cours n\'est pas remboursé (reste ' + rest + ').</span>'
+                : '<strong>Crédit possible jusqu\'à :</strong> ' + both(d => availableCeiling(m, d)) +
+                  ' <small style="color:var(--text-muted);">(3x votre épargne, dans chaque devise)</small>';
             document.getElementById('reqLimits').innerHTML =
                 creditLine + '<br>' +
-                '<strong>Retrait possible jusqu\'à :</strong> $' + availableWithdrawal(m) +
+                '<strong>Retrait possible jusqu\'à :</strong> ' + both(d => availableWithdrawal(m, d)) +
                 ' <small style="color:var(--text-muted);">(votre épargne doit continuer à couvrir vos crédits en cours)</small>';
         }
 
@@ -2266,11 +2585,13 @@
             const m = members.find(x => x.id === user.memberId);
             if (!m) return;
             const type = document.getElementById('reqType').value;
+            const rdEl = document.getElementById('reqDevise');
+            const dev = rdEl && rdEl.value === 'FC' ? 'FC' : 'USD';
             const amount = round2(parseFloat(document.getElementById('reqAmount').value));
             const note = document.getElementById('reqNote').value.trim().slice(0, 300);
 
             if (!REQ_LABELS[type]) return;
-            if (!isFinite(amount) || amount <= 0 || amount > 1000000) {
+            if (!isFinite(amount) || amount <= 0 || amount > 100000000) {
                 box.className = 'alert alert-error';
                 box.textContent = 'Le montant doit être supérieur à 0.';
                 return;
@@ -2285,7 +2606,7 @@
                 // Règle de base : un seul crédit à la fois
                 if (hasActiveCredit(m)) {
                     box.className = 'alert alert-error';
-                    box.textContent = 'Vous avez un crédit en cours (reste $' + memberOutstanding(m) +
+                    box.textContent = 'Vous avez un crédit en cours (reste ' + [memberOutstanding(m, 'USD') > 0 ? fmt(memberOutstanding(m, 'USD')) : '', memberOutstanding(m, 'FC') > 0 ? fmt(memberOutstanding(m, 'FC'), 'FC') : ''].filter(Boolean).join(' + ') +
                         '). Vous pourrez demander un nouveau crédit une fois celui-ci entièrement remboursé.';
                     return;
                 }
@@ -2295,11 +2616,11 @@
                     return;
                 }
             }
-            const max = type === 'credit' ? availableCeiling(m) : availableWithdrawal(m);
+            const max = type === 'credit' ? availableCeiling(m, dev) : availableWithdrawal(m, dev);
             if (amount > max) {
                 box.className = 'alert alert-error';
-                box.textContent = (type === 'credit' ? 'Crédit' : 'Retrait') + ' refusé d\'avance : le montant demandé ($' + amount +
-                    ') dépasse le maximum possible actuellement ($' + max + ').';
+                box.textContent = (type === 'credit' ? 'Crédit' : 'Retrait') + ' refusé d\'avance : le montant demandé (' + fmt(amount, dev) +
+                    ') dépasse le maximum possible actuellement (' + fmt(max, dev) + ').';
                 return;
             }
             requests.push({
@@ -2307,6 +2628,7 @@
                 memberId: m.id,
                 type: type,
                 amount: amount,
+                devise: dev,
                 note: note,
                 date: todayISO(),
                 status: 'en attente',
@@ -2327,7 +2649,7 @@
                 html += '<div class="claim-item ' + (r.status === 'en attente' ? 'open' : (r.status === 'approuvée' ? 'done' : '')) + '">' +
                     '<div class="claim-meta">' + escapeHtml(formatISOtoFR(r.date)) + ' · ' + escapeHtml(REQ_LABELS[r.type] || '') + ' · ' +
                     (REQ_STATUS[r.status] || '') + '</div>' +
-                    '<div class="claim-msg"><strong>$' + round2(r.amount) + '</strong>' + (r.note ? ' — ' + escapeHtml(r.note) : '') + '</div>' +
+                    '<div class="claim-msg"><strong>' + fmt(r.amount, devOf(r)) + '</strong>' + (r.note ? ' — ' + escapeHtml(r.note) : '') + '</div>' +
                     (r.decision ? '<div class="claim-reply"><strong>Réponse de l\'administrateur' +
                         (r.decisionDate ? ' (' + escapeHtml(formatISOtoFR(r.decisionDate)) + ')' : '') + ' :</strong><br>' + escapeHtml(r.decision) + '</div>' : '') +
                     '</div>';
@@ -2350,13 +2672,14 @@
                 html += '<div class="claim-item ' + (r.status === 'en attente' ? 'open' : (r.status === 'approuvée' ? 'done' : '')) + '">' +
                     '<div class="claim-meta"><strong>' + escapeHtml(memberName(r.memberId)) + '</strong> (' + escapeHtml(r.memberId) + ') · ' +
                     escapeHtml(formatISOtoFR(r.date)) + ' · ' + escapeHtml(REQ_LABELS[r.type] || '') + ' · ' + (REQ_STATUS[r.status] || '') + '</div>' +
-                    '<div class="claim-msg"><strong>$' + round2(r.amount) + '</strong>' + (r.note ? ' — ' + escapeHtml(r.note) : '') + '</div>';
+                    '<div class="claim-msg"><strong>' + fmt(r.amount, devOf(r)) + '</strong>' + (r.note ? ' — ' + escapeHtml(r.note) : '') + '</div>';
                 if (r.status === 'en attente') {
+                    const rd = devOf(r);
                     const info = m ? (r.type === 'credit'
                         ? (hasActiveCredit(m)
-                            ? 'Attention : crédit déjà en cours (reste $' + memberOutstanding(m) + ') — approbation impossible · Épargne : $' + round2(m.epargne)
-                            : 'Plafond de crédit disponible : $' + availableCeiling(m) + ' · Épargne : $' + round2(m.epargne))
-                        : 'Retrait maximum possible : $' + availableWithdrawal(m) + ' · Épargne : $' + round2(m.epargne)) : '';
+                            ? 'Attention : crédit déjà en cours (reste ' + fmt(memberOutstanding(m, 'USD')) + ' + ' + fmt(memberOutstanding(m, 'FC'), 'FC') + ') — approbation impossible · Épargne : ' + fmt(sav(m, rd), rd)
+                            : 'Plafond de crédit disponible : ' + fmt(availableCeiling(m, rd), rd) + ' · Épargne : ' + fmt(sav(m, rd), rd))
+                        : 'Retrait maximum possible : ' + fmt(availableWithdrawal(m, rd), rd) + ' · Épargne : ' + fmt(sav(m, rd), rd)) : '';
                     html += '<div class="claim-meta" style="margin-top:6px;">' + escapeHtml(info) + '</div>' +
                         '<div class="claim-actions">' +
                         '<textarea id="reqNote-' + rid + '" rows="2" maxlength="300" placeholder="Note pour le membre (facultatif)"></textarea>' +
@@ -2385,36 +2708,37 @@
             const field = document.getElementById('reqNote-' + id);
             const note = field ? field.value.trim().slice(0, 300) : '';
 
+            const rd = devOf(r);
             if (r.type === 'credit') {
                 if (hasActiveCredit(m)) {
-                    alert('Impossible d\'approuver : ' + m.name + ' a déjà un crédit en cours (reste $' + memberOutstanding(m) +
+                    alert('Impossible d\'approuver : ' + m.name + ' a déjà un crédit en cours (reste ' + fmt(memberOutstanding(m, 'USD')) + ' + ' + fmt(memberOutstanding(m, 'FC'), 'FC') +
                         '). Refusez la demande ou attendez le remboursement complet.');
                     return;
                 }
-                const max = availableCeiling(m);
+                const max = availableCeiling(m, rd);
                 if (r.amount > max) {
-                    alert('Impossible d\'approuver : le crédit demandé ($' + r.amount + ') dépasse le plafond actuellement disponible de ' + m.name + ' ($' + max + ').');
+                    alert('Impossible d\'approuver : le crédit demandé (' + fmt(r.amount, rd) + ') dépasse le plafond actuellement disponible de ' + m.name + ' (' + fmt(max, rd) + ').');
                     return;
                 }
-                if (!confirm('Accorder un crédit de $' + r.amount + ' à ' + m.name + ' ?\nIntérêt de 10 % prélevé : $' + round2(r.amount * 0.10) +
-                    ' — somme nette versée : $' + round2(r.amount - r.amount * 0.10))) return;
-                grantCredit(m, r.amount);
+                if (!confirm('Accorder un crédit de ' + fmt(r.amount, rd) + ' à ' + m.name + ' ?\nIntérêt de 10 % prélevé : ' + fmt(round2(r.amount * 0.10), rd) +
+                    ' — somme nette versée : ' + fmt(round2(r.amount - r.amount * 0.10), rd))) return;
+                grantCredit(m, r.amount, rd);
                 r.decision = note || 'Crédit accordé. À rembourser dans les 3 mois.';
             } else {
-                const max = availableWithdrawal(m);
+                const max = availableWithdrawal(m, rd);
                 if (r.amount > max) {
-                    alert('Impossible d\'approuver : le retrait demandé ($' + r.amount + ') dépasse le maximum possible pour ' + m.name + ' ($' + max + ').');
+                    alert('Impossible d\'approuver : le retrait demandé (' + fmt(r.amount, rd) + ') dépasse le maximum possible pour ' + m.name + ' (' + fmt(max, rd) + ').');
                     return;
                 }
-                if (!confirm('Retirer $' + r.amount + ' de l\'épargne de ' + m.name + ' ?')) return;
-                m.epargne = round2((Number(m.epargne) || 0) - r.amount);
-                logOp(m, 'retrait', r.amount, 'Demande approuvée');
+                if (!confirm('Retirer ' + fmt(r.amount, rd) + ' de l\'épargne de ' + m.name + ' ?')) return;
+                setSav(m, rd, round2(sav(m, rd) - r.amount));
+                logOp(m, 'retrait', r.amount, 'Demande approuvée', rd);
                 store.set('avec_members', members);
                 r.decision = note || 'Retrait accepté.';
             }
             r.status = 'approuvée';
             r.decisionDate = todayISO();
-            logActivity('Demande de ' + (r.type === 'credit' ? 'crédit' : 'retrait') + ' de $' + r.amount + ' approuvée — ' + m.name + ' (' + m.id + ')', m.id);
+            logActivity('Demande de ' + (r.type === 'credit' ? 'crédit' : 'retrait') + ' de ' + fmt(r.amount, devOf(r)) + ' approuvée — ' + m.name + ' (' + m.id + ')', m.id);
             store.set('avec_requests', requests);
             updateDashboard();
             displayMemberCreditInfo();
@@ -2429,7 +2753,7 @@
             r.status = 'refusée';
             r.decision = note || 'Demande refusée.';
             r.decisionDate = todayISO();
-            logActivity('Demande de ' + (r.type === 'credit' ? 'crédit' : 'retrait') + ' de $' + r.amount + ' refusée (' + r.memberId + ')', r.memberId);
+            logActivity('Demande de ' + (r.type === 'credit' ? 'crédit' : 'retrait') + ' de ' + fmt(r.amount, devOf(r)) + ' refusée (' + r.memberId + ')', r.memberId);
             store.set('avec_requests', requests);
             renderAdminRequests();
         }
