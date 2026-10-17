@@ -115,6 +115,7 @@
         .stat-content .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
         .stat-content .value { font-size: 1.25rem; font-weight: 700; margin-top: 4px; color: var(--text-main); }
 
+        .value-fc { font-size: 1.05rem; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
         .dtabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--border); overflow-x: auto; }
         .dtab { flex: 0 0 auto; padding: 10px 14px; border: none; background: none; font-weight: 600; font-size: 0.92rem; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; white-space: nowrap; }
         .dtab.active { color: var(--primary); border-bottom-color: var(--primary); }
@@ -253,15 +254,17 @@
             <div class="stat-card">
                 <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
                 <div class="stat-content">
-                    <div class="label">Total Épargne Caisse</div>
+                    <div class="label">Épargne (Dollars / Francs)</div>
                     <div class="value" id="statTotalEpargne">$0</div>
+                    <div class="value-fc" id="statTotalEpargneFC">0 FC</div>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-dollar"></i></div>
                 <div class="stat-content">
-                    <div class="label">Total Crédits Octroyés</div>
+                    <div class="label">Crédits octroyés</div>
                     <div class="value" id="statTotalCredits">$0</div>
+                    <div class="value-fc" id="statTotalCreditsFC">0 FC</div>
                 </div>
             </div>
             <div class="stat-card">
@@ -269,6 +272,7 @@
                 <div class="stat-content">
                     <div class="label">Reste à Rembourser</div>
                     <div class="value" id="statTotalRestant">$0</div>
+                    <div class="value-fc" id="statTotalRestantFC">0 FC</div>
                 </div>
             </div>
             <div class="stat-card">
@@ -276,20 +280,15 @@
                 <div class="stat-content">
                     <div class="label">Total Intérêts Perçus (10%)</div>
                     <div class="value" id="statTotalInterets">$0</div>
+                    <div class="value-fc" id="statTotalInteretsFC">0 FC</div>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon bg-green"><i class="fa-solid fa-sack-dollar"></i></div>
                 <div class="stat-content">
-                    <div class="label">Argent en caisse — Dollars</div>
+                    <div class="label">Argent en caisse</div>
                     <div class="value" id="statCaisseUSD">$0</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon bg-green"><i class="fa-solid fa-sack-dollar"></i></div>
-                <div class="stat-content">
-                    <div class="label">Argent en caisse — Francs</div>
-                    <div class="value" id="statCaisseFC">0 FC</div>
+                    <div class="value-fc" id="statCaisseFC">0 FC</div>
                     <small id="statCaisseFCNote" style="color:var(--text-muted);"></small>
                 </div>
             </div>
@@ -298,34 +297,6 @@
                 <div class="stat-content">
                     <div class="label">Fonds Cas Sociaux</div>
                     <div class="value" id="statSocialFund">0 FC</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
-                <div class="stat-content">
-                    <div class="label">Épargne en Francs</div>
-                    <div class="value" id="statTotalEpargneFC">0 FC</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-dollar"></i></div>
-                <div class="stat-content">
-                    <div class="label">Crédits en Francs</div>
-                    <div class="value" id="statTotalCreditsFC">0 FC</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon bg-warning"><i class="fa-solid fa-hourglass-half"></i></div>
-                <div class="stat-content">
-                    <div class="label">Reste à rembourser (FC)</div>
-                    <div class="value" id="statTotalRestantFC">0 FC</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon bg-green"><i class="fa-solid fa-percent"></i></div>
-                <div class="stat-content">
-                    <div class="label">Intérêts perçus (FC)</div>
-                    <div class="value" id="statTotalInteretsFC">0 FC</div>
                 </div>
             </div>
             <div class="stat-card">
@@ -705,6 +676,7 @@
                     <div class="stat-content">
                         <div class="label">Mon Épargne</div>
                         <div class="value" id="mStatEpargne">$0</div>
+                    <div class="value-fc" id="mStatEpargneFC">0 FC</div>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -712,6 +684,7 @@
                     <div class="stat-content">
                         <div class="label">Crédits Obtenus</div>
                         <div class="value" id="mStatCredits">$0</div>
+                    <div class="value-fc" id="mStatCreditsFC">0 FC</div>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -719,27 +692,7 @@
                     <div class="stat-content">
                         <div class="label">Reste à Rembourser</div>
                         <div class="value" id="mStatRestant">$0</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon bg-blue"><i class="fa-solid fa-wallet"></i></div>
-                    <div class="stat-content">
-                        <div class="label">Mon Épargne (FC)</div>
-                        <div class="value" id="mStatEpargneFC">0 FC</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon bg-warning"><i class="fa-solid fa-hand-holding-dollar"></i></div>
-                    <div class="stat-content">
-                        <div class="label">Crédits Obtenus (FC)</div>
-                        <div class="value" id="mStatCreditsFC">0 FC</div>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon bg-purple"><i class="fa-solid fa-hourglass-half"></i></div>
-                    <div class="stat-content">
-                        <div class="label">Reste à Rembourser (FC)</div>
-                        <div class="value" id="mStatRestantFC">0 FC</div>
+                    <div class="value-fc" id="mStatRestantFC">0 FC</div>
                     </div>
                 </div>
             </div>
