@@ -1180,6 +1180,7 @@
             remboursement: 'Remboursement',
             social: 'Cotisation cas sociaux',
             aide: 'Aide cas social',
+            prolongation: 'Échéance prolongée',
             occ: 'Cotisation occasionnelle',
             remise: 'Somme remise (cas social)',
             correction: "Correction de l'administrateur"
@@ -1835,6 +1836,36 @@
             displayMemberCreditInfo();
         }
 
+        // Repousse la date d'échéance d'un crédit non soldé : en nombre de mois, ou en saisissant directement la nouvelle date
+        function extendCredit(memberId, creditId) {
+            if (!requireAdmin()) return;
+            const m = members.find(x => x.id === memberId);
+            const c = m && (m.credits || []).find(x => x.id === creditId);
+            if (!c) return;
+            const cd = devOf(c);
+            if (creditRemaining(c) === 0) { alert('Ce crédit est déjà remboursé : il n\'y a rien à prolonger.'); return; }
+            const old = c.dueDate || todayISO();
+            const v = prompt('Échéance actuelle : ' + formatISOtoFR(old) + '.\n\nProlonger de combien de MOIS (1 à 24) ?\nOu tapez directement la nouvelle date (AAAA-MM-JJ).', '1');
+            if (v === null) return;
+            const t = String(v).trim();
+            let neu;
+            if (/^\d{1,2}$/.test(t) && Number(t) >= 1 && Number(t) <= 24) {
+                const p = old.split('-').map(Number);
+                neu = addMonthsISO(new Date(p[0], p[1] - 1, p[2]), Number(t));
+            } else if (/^\d{4}-\d{2}-\d{2}$/.test(t) && !isNaN(new Date(t + 'T00:00:00'))) {
+                neu = t;
+            } else { alert('Saisie invalide. Exemple : 2 (deux mois) ou 2026-12-31.'); return; }
+            if (neu <= old) { alert('La nouvelle échéance doit être après le ' + formatISOtoFR(old) + '.'); return; }
+            if (!Array.isArray(c.extensions)) c.extensions = [];
+            c.extensions.push({ date: todayISO(), from: old, to: neu });
+            if (c.extensions.length > 20) c.extensions = c.extensions.slice(-20);
+            c.dueDate = neu;
+            logOp(m, 'prolongation', creditRemaining(c), 'Crédit du ' + (c.date || '') + ' : échéance du ' + formatISOtoFR(old) + ' repoussée au ' + formatISOtoFR(neu), cd);
+            store.set('avec_members', members);
+            updateDashboard();
+            displayMemberCreditInfo();
+        }
+
         function deleteCredit(memberId, creditId) {
             if (!requireTotal()) return;
             const m = members.find(x => x.id === memberId);
@@ -1937,6 +1968,7 @@
                             '<br><small style="color:var(--text-muted);">Reste : ' + fmt(restant, cd) +
                             ' · Échéance : ' + escapeHtml(formatISOtoFR(c.dueDate)) + '</small> ' +
                             '<button class="btn-small" onclick="correctRepaid(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Corriger le montant remboursé"><i class="fa-solid fa-pen-to-square"></i></button>' +
+                            (restant > 0 ? '<button class="btn-small" onclick="extendCredit(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Prolonger l\'échéance"><i class="fa-solid fa-calendar-plus"></i></button>' : '') +
                             (canDelete(currentUser) ? '<button class="btn-small danger" onclick="deleteCredit(\'' + escapeHtml(m.id) + '\',\'' + cidAttr + '\')" title="Annuler ce crédit"><i class="fa-solid fa-xmark"></i></button>' : '') +
                             '</li>';
                     });
@@ -2128,10 +2160,11 @@
             (m.credits || []).forEach(c => {
                 const cd = devOf(c), rest = creditRemaining(c);
                 const badge = rest === 0 ? '<span class="badge badge-ok">Remboursé</span>' : (c.dueDate && c.dueDate < today ? '<span class="badge badge-late">En retard</span>' : '<span class="badge badge-due">En cours</span>');
-                crows += '<tr><td>' + escapeHtml(formatISOtoFR(c.date)) + '</td><td>' + fmt(c.amount, cd) + '</td><td>' + fmt(c.interet, cd) + '</td><td>' + fmt(c.repaid, cd) + '</td><td>' + fmt(rest, cd) + '</td><td>' + escapeHtml(formatISOtoFR(c.dueDate)) + '</td><td>' + badge + '</td></tr>';
+                crows += '<tr><td>' + escapeHtml(formatISOtoFR(c.date)) + '</td><td>' + fmt(c.amount, cd) + '</td><td>' + fmt(c.interet, cd) + '</td><td>' + fmt(c.repaid, cd) + '</td><td>' + fmt(rest, cd) + '</td><td>' + escapeHtml(formatISOtoFR(c.dueDate)) + ((c.extensions || []).length ? '<br><small style="color:var(--text-muted);">prolongée ' + c.extensions.length + ' fois</small>' : '') + '</td><td>' + badge + '</td>' +
+                    '<td>' + (rest > 0 ? '<button class="btn-small" onclick="extendCredit(\'' + id + '\', \'' + escapeHtml(c.id) + '\')"><i class="fa-solid fa-calendar-plus"></i> Prolonger</button>' : '') + '</td></tr>';
             });
             const credits = detailCard('fa-hand-holding-dollar', 'Crédits', crows
-                ? '<div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Montant</th><th>Intérêt</th><th>Remboursé</th><th>Reste</th><th>Échéance</th><th>Statut</th></tr></thead><tbody>' + crows + '</tbody></table></div>'
+                ? '<div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Montant</th><th>Intérêt</th><th>Remboursé</th><th>Reste</th><th>Échéance</th><th>Statut</th><th></th></tr></thead><tbody>' + crows + '</tbody></table></div>'
                 : emptyP('Aucun crédit.'));
             // 5. Cas sociaux
             const gifts = (m.occ || []).slice().reverse();

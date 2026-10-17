@@ -12,6 +12,7 @@ Application web de gestion d'une AVEC : épargne, crédits et remboursements des
 - **Cas sociaux** : chaque membre cotise chaque semaine (1 000 FC par défaut, montant modifiable par l'accès total dans l'onglet « Cas sociaux »; semaines du lundi au dimanche). Cet onglet enregistre les cotisations, signale les retards et enregistre les aides versées (déduites du fonds).
 - **Cotisations occasionnelles** : pour un membre en difficulté, l'admin ouvre une collecte en fixant la part de chaque membre (identique pour tous, une seule part par membre), enregistre les versements (espèces ou prélevés sur l'épargne en FC), voit qui a versé ou non, et remet la somme au bénéficiaire.
 - **Annonces** : l'équipe publie des messages (onglet « Annonces ») que tous les membres lisent en haut de leur compte ; une annonce peut être marquée « importante ».
+- **Prolongation d'échéance** : bouton calendrier sur chaque crédit non soldé (en mois, ou en tapant la nouvelle date) ; l'historique garde la trace.
 - **Fiche détaillée d'un membre** : en cliquant sur son nom (ou « Détails »), l'équipe voit ses comptes en $ et FC, son profil, ses crédits, tous ses mouvements, ses cas sociaux, ses réclamations et ses demandes. Le membre complète lui-même son profil (adresse, profession, personne à prévenir…) dans son compte.
 
 ## Fichiers
