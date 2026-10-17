@@ -128,6 +128,15 @@
         .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } }
         .detail-grid > * { min-width: 0; }
+        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
+        .kpi { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+        .kpi .l { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.02em; }
+        .kpi .v { font-size: 1rem; font-weight: 700; margin-top: 2px; }
+        .kpi .s { font-size: 0.72rem; color: var(--text-muted); }
+        .top-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .top-grid > * { min-width: 0; }
+        .top-grid .card { margin-bottom: 0; }
+        @media (max-width: 900px) { .top-grid { grid-template-columns: 1fr; gap: 0; } .top-grid .card { margin-bottom: 14px; } }
         .kv { display: flex; justify-content: flex-start; align-items: baseline; gap: 10px; width: fit-content; max-width: 100%; padding: 4px 0; border-bottom: 1px dashed var(--border); font-size: 0.9rem; }
         .kv span:first-child { color: var(--text-muted); }
         .kv span:last-child { text-align: left; font-weight: 600; word-break: break-word; }
@@ -2310,7 +2319,30 @@
                 '<div class="claim-item ' + (r.status === 'en attente' ? 'open' : (r.status === 'approuvée' ? 'done' : '')) + '"><div class="claim-meta">' + escapeHtml(formatISOtoFR(r.date)) + ' · ' + escapeHtml(REQ_LABELS[r.type] || '') + ' · ' + (REQ_STATUS[r.status] || '') + '</div>' +
                 '<div class="claim-msg"><strong>' + fmt(r.amount, devOf(r)) + '</strong>' + (r.note ? ' — ' + escapeHtml(r.note) : '') + '</div>' +
                 (r.decision ? '<div class="claim-reply"><strong>Réponse :</strong> ' + escapeHtml(r.decision) + '</div>' : '') + '</div>').join('') : emptyP('Aucune demande.'));
-            box.innerHTML = head + '<div class="detail-grid">' + '<div>' + accounts + profile + social + '</div><div>' + credits + moves + claimsHtml + reqHtml + '</div></div>';
+            // Bilan et activité : exploitent la place à droite de l'identité
+            const hist = m.history || [], cr = m.credits || [];
+            const sumC = (d, f) => round2(cr.filter(c => devOf(c) === d).reduce((a, c) => a + (Number(f(c)) || 0), 0));
+            const both = f => fmt(f('USD'), 'USD') + ' · ' + fmt(f('FC'), 'FC');
+            const lastH = hist.length ? hist[hist.length - 1] : null, firstH = hist.length ? hist[0] : null;
+            const openClaims = claims.filter(c => c.memberId === m.id && c.status !== 'traitée').length;
+            const pendReq = requests.filter(r => r.memberId === m.id && r.status === 'en attente').length;
+            const lateN = cr.filter(c => creditRemaining(c) > 0 && c.dueDate && c.dueDate < today).length;
+            const kpi = (l, v, sub) => '<div class="kpi"><div class="l">' + l + '</div><div class="v">' + v + '</div>' + (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>';
+            const kpis = '<div class="kpis">' +
+                kpi('Épargne', fmt(m.epargne) , fmt(sav(m, 'FC'), 'FC')) +
+                kpi('Crédit à rembourser', fmt(memberOutstanding(m, 'USD')), fmt(memberOutstanding(m, 'FC'), 'FC')) +
+                kpi('Crédits', cr.length, cr.filter(c => creditRemaining(c) > 0).length + ' en cours' + (lateN ? ' · ' + lateN + ' en retard' : '')) +
+                kpi('Mouvements', hist.length, lastH ? 'dernier : ' + escapeHtml(formatISOtoFR(lastH.date)) : 'aucun') +
+                kpi('Réclamations ouvertes', openClaims, pendReq + ' demande(s) en attente') + '</div>';
+            const activity = detailCard('fa-chart-simple', 'Bilan', 
+                kv('Total emprunté', both(d => sumC(d, c => c.amount))) +
+                kv('Intérêts prévus', both(d => sumC(d, c => c.interet))) +
+                kv('Total remboursé', both(d => sumC(d, c => c.repaid))) +
+                kv('Première opération', firstH ? escapeHtml(formatISOtoFR(firstH.date)) : '—') +
+                kv('Dernière opération', lastH ? escapeHtml(formatISOtoFR(lastH.date)) + ' · ' + escapeHtml(OP_LABELS[lastH.type] || 'Opération') : '—') +
+                kv('Situation cas sociaux', arrearsText(m)) +
+                kv('Profil complété', p ? 'oui' : 'pas encore'));
+            box.innerHTML = kpis + '<div class="top-grid">' + head + activity + '</div><div class="detail-grid" style="margin-top:20px;">' + '<div>' + accounts + profile + social + '</div><div>' + credits + moves + claimsHtml + reqHtml + '</div></div>';
             labelTables();
         }
 
